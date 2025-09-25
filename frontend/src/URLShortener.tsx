@@ -37,11 +37,56 @@ export default function URLShortener() {
     }
   }, []);
 
+  // Auto-refresh stats when page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && recentUrls.length > 0) {
+        refreshRecentUrls();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [recentUrls]);
+
   // Save to localStorage
   const saveToRecent = (newUrl: URLResult) => {
     const updated = [newUrl, ...recentUrls.slice(0, 9)]; // Keep last 10
     setRecentUrls(updated);
     localStorage.setItem('recentUrls', JSON.stringify(updated));
+  };
+
+  // Clear recent URLs
+  const clearRecentUrls = () => {
+    setRecentUrls([]);
+    localStorage.removeItem('recentUrls');
+  };
+
+  // Refresh stats for all recent URLs
+  const refreshRecentUrls = async () => {
+    if (recentUrls.length === 0) return;
+    
+    try {
+      const updatedUrls = await Promise.all(
+        recentUrls.map(async (item) => {
+          try {
+            const response = await fetch(`${API_BASE}/api/stats/${item.short_code}`);
+            if (response.ok) {
+              const stats = await response.json();
+              return { ...item, click_count: stats.click_count };
+            }
+          } catch (err) {
+            console.error(`Failed to refresh stats for ${item.short_code}:`, err);
+          }
+          return item; // Return original if fetch fails
+        })
+      );
+      
+      setRecentUrls(updatedUrls);
+      localStorage.setItem('recentUrls', JSON.stringify(updatedUrls));
+    } catch (err) {
+      console.error('Failed to refresh recent URLs:', err);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -207,7 +252,23 @@ export default function URLShortener() {
         {/* Recent URLs */}
         {recentUrls.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Recent URLs</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-gray-900">Recent URLs</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={refreshRecentUrls}
+                  className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                >
+                  Refresh Stats
+                </button>
+                <button
+                  onClick={clearRecentUrls}
+                  className="px-4 py-2 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                >
+                  Clear History
+                </button>
+              </div>
+            </div>
             <div className="space-y-4">
               {recentUrls.map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -219,15 +280,16 @@ export default function URLShortener() {
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800 font-medium"
                       >
-                        s.casimirlundberg.fi/{item.short_code}
+                        {item.short_url}
                       </a>
                       <ExternalLink className="w-4 h-4 text-gray-400" />
                     </div>
                     <div className="text-sm text-gray-600 truncate">
                       {item.original_url}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Created: {new Date(item.created_at).toLocaleDateString()}
+                    <div className="text-xs text-gray-500 mt-1 flex gap-4">
+                      <span>Created: {new Date(item.created_at).toLocaleDateString()}</span>
+                      <span>Clicks: {item.click_count}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-4">
