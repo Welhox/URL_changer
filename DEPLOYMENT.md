@@ -1,8 +1,37 @@
-# 🚀 URL Shortener - Production Deployment Guide
+# 🚀 URL Changer - Production Deployment Guide
 
 > **Note**: Throughout this guide, replace `YOUR_DOMAIN` with your actual domain name (e.g., `example.com`).
 > 
 > **Quick Setup**: Use `./scripts/setup-domain.sh your-domain.com` to automatically configure all files for your domain.
+
+## 🔑 NEW: API Key Authentication (UPDATED)
+
+### **Frontend Authentication Integration**
+✅ **Frontend now automatically handles API key authentication!**
+
+- **Development**: No API key required
+- **Production**: API key automatically included in all requests
+- **Seamless**: No manual header management needed
+
+### **Environment Configuration**
+
+**Frontend (`.env.production`)**:
+```bash
+VITE_API_BASE_URL=https://YOUR_DOMAIN
+VITE_API_KEY=JCffTVvDzYiOUqTFrJmTNAMa9ql6kcvC
+```
+
+**Backend (`.env.production`)**:  
+```bash
+ENVIRONMENT=production
+API_KEY=JCffTVvDzYiOUqTFrJmTNAMa9ql6kcvC
+SECRET_KEY=arNgJAJLTp1h%zWP2LRe#FqtGyhpotlpMbsl%YL0tuZtu0V8K2Badh%76Fwovvc2
+```
+
+### **Test Authentication**
+```bash
+./test-api-auth.sh  # Verify API key setup
+```
 
 ## Prerequisites
 

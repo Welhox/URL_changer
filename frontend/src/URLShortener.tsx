@@ -19,6 +19,25 @@ interface URLStats {
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
+const API_KEY = import.meta.env.VITE_API_KEY;
+
+// Helper function to make API requests with proper headers
+const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  // Add API key in production mode
+  if (import.meta.env.PROD && API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+
+  return fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers,
+  });
+};
 
 export default function URLShortener() {
   const [url, setUrl] = useState('');
@@ -70,7 +89,7 @@ export default function URLShortener() {
       const updatedUrls = await Promise.all(
         recentUrls.map(async (item) => {
           try {
-            const response = await fetch(`${API_BASE}/api/stats/${item.short_code}`);
+            const response = await apiRequest(`/api/stats/${item.short_code}`);
             if (response.ok) {
               const stats = await response.json();
               return { ...item, click_count: stats.click_count };
@@ -103,11 +122,8 @@ export default function URLShortener() {
         payload.custom_code = customCode.trim();
       }
 
-      const response = await fetch(`${API_BASE}/api/shorten`, {
+      const response = await apiRequest('/api/shorten', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(payload),
       });
 
@@ -140,7 +156,7 @@ export default function URLShortener() {
 
   const getStats = async (shortCode: string) => {
     try {
-      const response = await fetch(`${API_BASE}/api/stats/${shortCode}`);
+      const response = await apiRequest(`/api/stats/${shortCode}`);
       if (response.ok) {
         const stats = await response.json();
         alert(`Stats for ${shortCode}:\nClicks: ${stats.click_count}\nCreated: ${new Date(stats.created_at).toLocaleString()}`);
