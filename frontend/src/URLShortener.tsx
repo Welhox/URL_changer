@@ -21,22 +21,17 @@ interface URLStats {
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
 const API_KEY = import.meta.env.VITE_API_KEY;
 
-// Helper function to make API requests with proper headers
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
 
-  // Add API key in production mode
   if (import.meta.env.PROD && API_KEY) {
     headers['X-API-Key'] = API_KEY;
   }
 
-  return fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  return fetch(`${API_BASE}${endpoint}`, { ...options, headers });
 };
 
 export default function URLShortener() {
@@ -48,7 +43,6 @@ export default function URLShortener() {
   const [copied, setCopied] = useState(false);
   const [recentUrls, setRecentUrls] = useState<URLResult[]>([]);
 
-  // Load recent URLs from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('recentUrls');
     if (stored) {
@@ -56,7 +50,6 @@ export default function URLShortener() {
     }
   }, []);
 
-  // Auto-refresh stats when page becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && recentUrls.length > 0) {
@@ -68,20 +61,17 @@ export default function URLShortener() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [recentUrls]);
 
-  // Save to localStorage
   const saveToRecent = (newUrl: URLResult) => {
-    const updated = [newUrl, ...recentUrls.slice(0, 9)]; // Keep last 10
+    const updated = [newUrl, ...recentUrls.slice(0, 9)];
     setRecentUrls(updated);
     localStorage.setItem('recentUrls', JSON.stringify(updated));
   };
 
-  // Clear recent URLs
   const clearRecentUrls = () => {
     setRecentUrls([]);
     localStorage.removeItem('recentUrls');
   };
 
-  // Refresh stats for all recent URLs
   const refreshRecentUrls = async () => {
     if (recentUrls.length === 0) return;
     
@@ -97,7 +87,7 @@ export default function URLShortener() {
           } catch (err) {
             console.error(`Failed to refresh stats for ${item.short_code}:`, err);
           }
-          return item; // Return original if fetch fails
+          return item;
         })
       );
       
@@ -169,7 +159,6 @@ export default function URLShortener() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-3">
             <Link className="w-8 h-8 text-blue-600" />
@@ -237,7 +226,6 @@ export default function URLShortener() {
             </button>
           </form>
 
-          {/* Result */}
           {result && (
             <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-lg">
               <h3 className="text-lg font-semibold text-green-800 mb-4">
@@ -265,7 +253,6 @@ export default function URLShortener() {
           )}
         </div>
 
-        {/* Recent URLs */}
         {recentUrls.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <div className="flex justify-between items-center mb-6">

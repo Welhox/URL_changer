@@ -1,11 +1,12 @@
 from fastapi import FastAPI, HTTPException, Depends, Request, Header
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel, HttpUrl, validator
 import string
 import random
@@ -17,35 +18,25 @@ import os
 import logging
 from dotenv import load_dotenv
 
-# Optional imports for production
 try:
     import sentry_sdk
     SENTRY_AVAILABLE = True
 except ImportError:
     SENTRY_AVAILABLE = False
 
-# Load environment variables
 load_dotenv()
 
 # Configuration
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 DOMAIN = os.getenv("DOMAIN", "coventure.es")
-
-# Base URL - force localhost in development mode
-if ENVIRONMENT == "development":
-    BASE_URL = "http://localhost:8000"
-else:
-    BASE_URL = os.getenv("BASE_URL", f"https://{DOMAIN}")
+BASE_URL = ("http://localhost:8000" if ENVIRONMENT == "development" 
+           else os.getenv("BASE_URL", f"https://{DOMAIN}"))
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 API_KEY = os.getenv("API_KEY", "default-api-key")
-# CORS Origins - permissive in development, strict in production
-if ENVIRONMENT == "development":
-    ALLOWED_ORIGINS = ["*"]  # Allow all origins in development
-else:
-    ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", f"https://{DOMAIN},https://www.{DOMAIN}").split(",")
+ALLOWED_ORIGINS = (["*"] if ENVIRONMENT == "development" 
+                  else os.getenv("ALLOWED_ORIGINS", f"https://{DOMAIN},https://www.{DOMAIN}").split(","))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
 
-# Initialize Sentry for error tracking
 if ENVIRONMENT == "production" and os.getenv("SENTRY_DSN") and SENTRY_AVAILABLE:
     sentry_sdk.init(
         dsn=os.getenv("SENTRY_DSN"),
@@ -53,17 +44,14 @@ if ENVIRONMENT == "production" and os.getenv("SENTRY_DSN") and SENTRY_AVAILABLE:
         environment=ENVIRONMENT,
     )
 
-# Rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
-# Logging configuration
 logging.basicConfig(
     level=logging.INFO if ENVIRONMENT == "production" else logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# Create tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -73,18 +61,12 @@ app = FastAPI(
     redoc_url="/redoc" if ENVIRONMENT == "development" else None
 )
 
-# Security middleware
 if ENVIRONMENT == "production":
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=[DOMAIN, f"*.{DOMAIN}"]
-    )
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=[DOMAIN, f"*.{DOMAIN}"])
 
-# Rate limiting
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -93,15 +75,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Authentication dependency
 def verify_api_key(x_api_key: str = Header(None)):
-    if ENVIRONMENT == "production":
-        if x_api_key != API_KEY:
-            raise HTTPException(status_code=401, detail="Invalid API key")
-    # In development mode, API key is optional
+    if ENVIRONMENT == "production" and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
     return x_api_key
 
-# Dependency to get database session
 def get_db():
     db = SessionLocal()
     try:
@@ -109,7 +87,6 @@ def get_db():
     finally:
         db.close()
 
-# Pydantic models
 class URLCreate(BaseModel):
     url: HttpUrl
     custom_code: Optional[str] = None
@@ -118,24 +95,17 @@ class URLCreate(BaseModel):
     @validator('url')
     def validate_url(cls, v):
         url_str = str(v)
-        # Block localhost and internal IPs in production
         if ENVIRONMENT == "production":
             blocked_patterns = [
-                r'localhost',
-                r'127\.0\.0\.1',
-                r'192\.168\.',
-                r'10\.',
-                r'172\.(1[6-9]|2[0-9]|3[01])\.',
-                r'0\.0\.0\.0'
+                r'localhost', r'127\.0\.0\.1', r'192\.168\.', r'10\.',
+                r'172\.(1[6-9]|2[0-9]|3[01])\.', r'0\.0\.0\.0'
             ]
             for pattern in blocked_patterns:
                 if re.search(pattern, url_str, re.IGNORECASE):
                     raise ValueError('Internal URLs are not allowed')
-        
-        # Ensure HTTPS in production
-        if ENVIRONMENT == "production" and not url_str.startswith('https://'):
-            raise ValueError('Only HTTPS URLs are allowed in production')
             
+            if not url_str.startswith('https://'):
+                raise ValueError('Only HTTPS URLs are allowed in production')
         return v
     
     @validator('custom_code')
@@ -163,12 +133,10 @@ class URLStats(BaseModel):
     created_at: datetime
 
 def generate_short_code(length: int = 6) -> str:
-    """Generate a random short code"""
     characters = string.ascii_letters + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
 
 def is_valid_custom_code(code: str) -> bool:
-    """Validate custom code format"""
     return re.match(r'^[a-zA-Z0-9_-]+$', code) and len(code) <= 20
 
 @app.post("/api/shorten", response_model=URLResponse)
@@ -179,28 +147,22 @@ async def shorten_url(
     db: Session = Depends(get_db),
     api_key: str = Depends(verify_api_key)
 ):
-    """Create a shortened URL"""
-    
-    # Validate custom code if provided
     if url_data.custom_code:
         if not is_valid_custom_code(url_data.custom_code):
             raise HTTPException(status_code=400, detail="Invalid custom code format")
         
-        # Check if custom code already exists
         existing = db.query(URLMapping).filter(URLMapping.short_code == url_data.custom_code).first()
         if existing:
             raise HTTPException(status_code=400, detail="Custom code already exists")
         
         short_code = url_data.custom_code
     else:
-        # Generate unique short code
         while True:
             short_code = generate_short_code()
             existing = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
             if not existing:
                 break
     
-    # Create URL mapping
     url_mapping = URLMapping(
         original_url=str(url_data.url),
         short_code=short_code,
@@ -222,20 +184,16 @@ async def shorten_url(
     )
 
 @app.get("/{short_code}")
-@limiter.limit("100/minute")  # Higher limit for redirects
+@limiter.limit("100/minute")
 async def redirect_url(request: Request, short_code: str, db: Session = Depends(get_db)):
-    """Redirect to original URL and increment click count"""
-    
     url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
     
     if not url_mapping:
         raise HTTPException(status_code=404, detail="Short URL not found")
     
-    # Check if URL has expired
     if url_mapping.expires_at and datetime.utcnow() > url_mapping.expires_at:
         raise HTTPException(status_code=410, detail="Short URL has expired")
     
-    # Increment click count
     url_mapping.click_count += 1
     db.commit()
     
@@ -243,8 +201,6 @@ async def redirect_url(request: Request, short_code: str, db: Session = Depends(
 
 @app.get("/api/stats/{short_code}", response_model=URLStats)
 async def get_url_stats(short_code: str, db: Session = Depends(get_db)):
-    """Get statistics for a shortened URL"""
-    
     url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
     
     if not url_mapping:
@@ -259,10 +215,9 @@ async def get_url_stats(short_code: str, db: Session = Depends(get_db)):
 
 @app.get("/api/health")
 async def health_check(db: Session = Depends(get_db)):
-    """Health check endpoint with database connectivity test"""
     try:
-        # Test database connectivity
-        db.execute("SELECT 1")
+        # Test database connectivity by querying the URL mappings table
+        result = db.query(URLMapping).first()
         db_status = "healthy"
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
@@ -278,14 +233,12 @@ async def health_check(db: Session = Depends(get_db)):
 
 @app.get("/api/metrics")
 async def metrics(db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
-    """Basic metrics endpoint for monitoring"""
     try:
         total_urls = db.query(URLMapping).count()
         total_clicks = db.query(URLMapping).with_entities(
-            db.func.sum(URLMapping.click_count)
+            func.sum(URLMapping.click_count)
         ).scalar() or 0
         
-        # Recent activity (last 24 hours)
         recent_urls = db.query(URLMapping).filter(
             URLMapping.created_at >= datetime.utcnow() - timedelta(days=1)
         ).count()

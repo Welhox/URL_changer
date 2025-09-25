@@ -5,19 +5,12 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Database configuration - PostgreSQL only
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is required")
-
-if DATABASE_URL.startswith("sqlite"):
-    raise ValueError("SQLite is no longer supported. Please use PostgreSQL.")
-
-# PostgreSQL engine configuration
 engine = create_engine(
     DATABASE_URL,
     pool_size=10,

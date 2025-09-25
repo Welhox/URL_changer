@@ -1,0 +1,192 @@
+### URL Shortener API Tests
+### Base URL: http://localhost:8000 (development)
+
+### 1. Health Check
+GET http://localhost:8000/api/health
+
+###
+
+### 2. Create Short URL - Basic
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "https://github.com/welhox"
+}
+
+###
+
+### 3. Create Short URL with Custom Code
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "https://example.com/very/long/path/to/some/resource",
+  "custom_code": "my-custom-link"
+}
+
+###
+
+### 4. Create Short URL with Expiration
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "https://temporary.example.com",
+  "expires_at": "2025-12-31T23:59:59"
+}
+
+###
+
+### 5. Get URL Statistics
+# Replace 'abc123' with actual short code from previous responses
+GET http://localhost:8000/api/stats/abc123
+
+###
+
+### 6. Test Redirect (will follow redirect)
+# Replace 'abc123' with actual short code from previous responses
+GET http://localhost:8000/abc123
+
+###
+
+### 7. Test Redirect Headers Only (won't follow redirect)
+# Replace 'abc123' with actual short code from previous responses
+HEAD http://localhost:8000/abc123
+
+###
+
+### 8. Get Metrics (Development - no API key required)
+GET http://localhost:8000/api/metrics
+
+###
+
+### 9. Get Metrics (Production - with API key)
+GET http://localhost:8000/api/metrics
+X-API-Key: your-api-key-here
+
+###
+
+### Error Testing
+
+### 10. Invalid URL Format
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "not-a-valid-url"
+}
+
+###
+
+### 11. Custom Code Already Exists
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "https://example.com",
+  "custom_code": "test"
+}
+
+###
+
+### 12. Custom Code Too Short
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "https://example.com",
+  "custom_code": "ab"
+}
+
+###
+
+### 13. Custom Code Invalid Characters
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "https://example.com",
+  "custom_code": "invalid@code!"
+}
+
+###
+
+### 14. Non-existent Short Code Stats
+GET http://localhost:8000/api/stats/nonexistent
+
+###
+
+### 15. Non-existent Short Code Redirect
+GET http://localhost:8000/nonexistent
+
+###
+
+### Production Testing (update base URL and add API keys)
+
+### 16. Production Health Check
+# GET https://your-domain.com/api/health
+
+###
+
+### 17. Production URL Creation (with API key)
+# POST https://your-domain.com/api/shorten
+# Content-Type: application/json
+# X-API-Key: your-production-api-key
+# 
+# {
+#   "url": "https://example.com"
+# }
+
+###
+
+### 18. Production Metrics (with API key)
+# GET https://your-domain.com/api/metrics
+# X-API-Key: your-production-api-key
+
+###
+
+### Rate Limiting Tests
+
+### 19. Multiple Requests (for rate limit testing)
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "https://example1.com"
+}
+
+###
+
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "https://example2.com"
+}
+
+###
+
+POST http://localhost:8000/api/shorten
+Content-Type: application/json
+
+{
+  "url": "https://example3.com"
+}
+
+###
+
+### Variables for different environments
+### You can use these by uncommenting and modifying:
+
+### Development
+# @hostname = localhost:8000
+# @apikey = development-api-key
+
+### Production  
+# @hostname = your-domain.com
+# @apikey = your-production-api-key
+
+### Example using variables:
+# GET https://{{hostname}}/api/health
+# X-API-Key: {{apikey}}

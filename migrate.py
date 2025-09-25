@@ -28,15 +28,9 @@ def migrate_database():
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Load environment variables (defaults to .env file)
     load_dotenv()
     
     database_url = os.getenv('DATABASE_URL', 'Not set')
     print(f"Using DATABASE_URL: {database_url[:50]}...")
     
-    if database_url.startswith('sqlite'):
-        print("❌ SQLite detected. Please update your .env file to use PostgreSQL.")
-        sys.exit(1)
-    
-    # Run migration
     migrate_database()
