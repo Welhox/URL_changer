@@ -61,33 +61,34 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-teal-100 flex justify-center items-start pt-8 pb-16">
+    <div className="min-h-screen w-full bg-gray-900 flex justify-center items-start pt-8 pb-16">
       <div className="max-w-md px-6">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-teal-600 mb-4 rounded-xl">
-            <User className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-xl" style={{backgroundColor: '#FF7BAC'}}>
+            <User className="w-8 h-8 text-gray-900" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">
+          <h1 className="text-3xl font-bold text-white mb-2">
             Welcome to URL Changer
           </h1>
-          <p className="text-slate-600 text-lg">
+          <p className="text-gray-300 text-lg">
             {isLogin ? 'Sign in to your account' : 'Create your account'}
           </p>
         </div>
 
         {/* Demo Credentials Notice */}
-        <div className="bg-blue-100 border-2 border-blue-400 p-4 mb-4 w-full max-w-md rounded-xl">
+        <div className="bg-gray-800 border-2 p-4 mb-4 w-full max-w-md rounded-xl" style={{borderColor: '#FF7BAC'}}>
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 mt-1 flex-shrink-0" style={{color: '#FF7BAC'}} />
             <div>
-              <h3 className="font-bold text-blue-800 text-base mb-1">Demo Account Available</h3>
-              <p className="text-blue-700 mb-3 text-sm">
+              <h3 className="font-bold text-white text-base mb-1">Demo Account Available</h3>
+              <p className="text-gray-300 mb-3 text-sm">
                 You can use the demo account to test the application with existing URLs.
               </p>
               <button
                 onClick={useDemoCredentials}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors rounded-lg"
+                className="px-3 py-1.5 text-gray-900 text-sm font-semibold transition-colors rounded-lg hover:opacity-90"
+                style={{backgroundColor: '#FF7BAC'}}
               >
                 Use Demo Account
               </button>
@@ -96,11 +97,11 @@ export default function AuthForm() {
         </div>
 
         {/* Auth Form */}
-        <div className="bg-white p-6 shadow-lg w-full max-w-md rounded-2xl">
+        <div className="bg-gray-800 p-6 shadow-lg w-full max-w-md rounded-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username */}
             <div>
-              <label htmlFor="username" className="block text-base font-bold text-slate-800 mb-2">
+              <label htmlFor="username" className="block text-base font-bold text-white mb-2">
                 Username
               </label>
               <input
@@ -109,9 +110,10 @@ export default function AuthForm() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
-                className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-300 
-                         text-slate-800 text-base placeholder-slate-500 focus:border-teal-500 
-                         outline-none transition-colors rounded-lg"
+                className="w-full px-3 py-2.5 bg-gray-100 border-2 border-gray-300 
+                         text-gray-900 text-base placeholder-gray-500 outline-none transition-colors rounded-lg"
+                onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#FF7BAC'}
+                onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
                 required
               />
             </div>
@@ -119,7 +121,7 @@ export default function AuthForm() {
             {/* Email (Registration only) */}
             {!isLogin && (
               <div>
-                <label htmlFor="email" className="block text-base font-bold text-slate-800 mb-2">
+                <label htmlFor="email" className="block text-base font-bold text-white mb-2">
                   Email
                 </label>
                 <input
@@ -128,9 +130,10 @@ export default function AuthForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-300 
-                           text-slate-800 text-base placeholder-slate-500 focus:border-teal-500 
-                           outline-none transition-colors rounded-lg"
+                  className="w-full px-3 py-2.5 bg-gray-100 border-2 border-gray-300 
+                           text-gray-900 text-base placeholder-gray-500 outline-none transition-colors rounded-lg"
+                  onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#FF7BAC'}
+                  onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
                   required={!isLogin}
                 />
               </div>
@@ -138,7 +141,7 @@ export default function AuthForm() {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-base font-bold text-slate-800 mb-2">
+              <label htmlFor="password" className="block text-base font-bold text-white mb-2">
                 Password
               </label>
               <input
@@ -147,9 +150,10 @@ export default function AuthForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-300 
-                         text-slate-800 text-base placeholder-slate-500 focus:border-teal-500 
-                         outline-none transition-colors rounded-lg"
+                className="w-full px-3 py-2.5 bg-gray-100 border-2 border-gray-300 
+                         text-gray-900 text-base placeholder-gray-500 outline-none transition-colors rounded-lg"
+                onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#FF7BAC'}
+                onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
                 required
               />
             </div>
@@ -157,7 +161,7 @@ export default function AuthForm() {
             {/* Confirm Password (Registration only) */}
             {!isLogin && (
               <div>
-                <label htmlFor="confirmPassword" className="block text-base font-bold text-slate-800 mb-2">
+                <label htmlFor="confirmPassword" className="block text-base font-bold text-white mb-2">
                   Confirm Password
                 </label>
                 <input
@@ -166,9 +170,10 @@ export default function AuthForm() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm your password"
-                  className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-300 
-                           text-slate-800 text-base placeholder-slate-500 focus:border-teal-500 
-                           outline-none transition-colors rounded-lg"
+                  className="w-full px-3 py-2.5 bg-gray-100 border-2 border-gray-300 
+                           text-gray-900 text-base placeholder-gray-500 outline-none transition-colors rounded-lg"
+                  onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#FF7BAC'}
+                  onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
                   required={!isLogin}
                 />
               </div>
@@ -176,7 +181,7 @@ export default function AuthForm() {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-100 border-2 border-red-400 p-3 rounded-lg">
+              <div className="bg-red-100 border-2 border-red-300 p-3 rounded-lg">
                 <p className="text-red-800 text-sm font-semibold">
                   {error}
                 </p>
@@ -188,15 +193,16 @@ export default function AuthForm() {
               type="submit"
               disabled={loading}
               className={clsx(
-                'w-full py-3 px-4 font-bold text-base transition-colors shadow-md flex items-center justify-center gap-2 rounded-lg',
+                'w-full py-3 px-4 font-bold text-base transition-colors shadow-md flex items-center justify-center gap-2 rounded-lg hover:opacity-90',
                 loading
-                  ? 'bg-slate-400 cursor-not-allowed text-slate-600'
-                  : 'bg-teal-600 hover:bg-teal-700 text-white'
+                  ? 'bg-gray-400 cursor-not-allowed text-gray-600'
+                  : 'text-gray-900'
               )}
+              style={loading ? {} : {backgroundColor: '#FF7BAC'}}
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-600 border-t-transparent"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-600 border-t-transparent"></div>
                   {isLogin ? 'Signing In...' : 'Creating Account...'}
                 </>
               ) : (
@@ -217,7 +223,7 @@ export default function AuthForm() {
                   setEmail('');
                   setConfirmPassword('');
                 }}
-                className="text-teal-600 hover:text-teal-700 font-semibold text-sm"
+                className="font-semibold text-sm text-gray-900 hover:text-white"
               >
                 {isLogin 
                   ? "Don't have an account? Sign up" 
