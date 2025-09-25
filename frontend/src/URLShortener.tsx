@@ -226,7 +226,7 @@ export default function URLShortener() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-teal-100 flex justify-center">
+    <div className="min-h-screen w-full bg-teal-100 flex justify-center pb-16">
       <div className="max-w-2xl px-6 py-12">
         {/* User Info Header */}
         {user && (

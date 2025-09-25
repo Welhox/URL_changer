@@ -2,6 +2,7 @@
 import { AuthProvider, useAuth } from './AuthContext';
 import URLShortener from './URLShortener';
 import AuthForm from './AuthForm';
+import Footer from './Footer';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -26,6 +27,7 @@ function App() {
   return (
     <AuthProvider>
       <AppContent />
+      <Footer />
     </AuthProvider>
   );
 }
