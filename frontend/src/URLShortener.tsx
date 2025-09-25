@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link, Copy, Check, BarChart3, ExternalLink } from 'lucide-react';
+import { Link2, Copy, Check, BarChart3, ExternalLink, TrendingUp, ChevronDown, ChevronUp, Trash2, LogOut, User } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useAuth } from './AuthContext';
 
 interface URLResult {
   id: number;
@@ -21,17 +22,23 @@ interface URLStats {
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
 const API_KEY = import.meta.env.VITE_API_KEY;
 
-const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+const createApiRequest = (authToken: string | null) => {
+  return async (endpoint: string, options: RequestInit = {}) => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    };
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    if (import.meta.env.PROD && API_KEY) {
+      headers['X-API-Key'] = API_KEY;
+    }
+
+    return fetch(`${API_BASE}${endpoint}`, { ...options, headers });
   };
-
-  if (import.meta.env.PROD && API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
-
-  return fetch(`${API_BASE}${endpoint}`, { ...options, headers });
 };
 
 export default function URLShortener() {
@@ -42,13 +49,33 @@ export default function URLShortener() {
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [recentUrls, setRecentUrls] = useState<URLResult[]>([]);
+  const [showRecentUrls, setShowRecentUrls] = useState(false);
 
+  const { user, token, logout } = useAuth();
+
+  // Load user's URLs from API when authenticated
   useEffect(() => {
-    const stored = localStorage.getItem('recentUrls');
-    if (stored) {
-      setRecentUrls(JSON.parse(stored));
+    if (token) {
+      loadUserUrls();
     }
-  }, []);
+  }, [token]);
+
+  const loadUserUrls = async () => {
+    if (!token) return;
+    
+    const apiRequest = createApiRequest(token);
+    
+    try {
+      const response = await apiRequest('/api/my-urls');
+      if (response.ok) {
+        const urls = await response.json();
+        setRecentUrls(urls);
+        localStorage.setItem('recentUrls', JSON.stringify(urls));
+      }
+    } catch (err) {
+      console.error('Failed to load user URLs:', err);
+    }
+  };
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -62,7 +89,7 @@ export default function URLShortener() {
   }, [recentUrls]);
 
   const saveToRecent = (newUrl: URLResult) => {
-    const updated = [newUrl, ...recentUrls.slice(0, 9)];
+    const updated = [newUrl, ...recentUrls];
     setRecentUrls(updated);
     localStorage.setItem('recentUrls', JSON.stringify(updated));
   };
@@ -73,7 +100,9 @@ export default function URLShortener() {
   };
 
   const refreshRecentUrls = async () => {
-    if (recentUrls.length === 0) return;
+    if (recentUrls.length === 0 || !token) return;
+    
+    const apiRequest = createApiRequest(token);
     
     try {
       const updatedUrls = await Promise.all(
@@ -100,11 +129,13 @@ export default function URLShortener() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) return;
+    if (!url.trim() || !token) return;
 
     setLoading(true);
     setError('');
     setResult(null);
+
+    const apiRequest = createApiRequest(token);
 
     try {
       const payload: any = { url: url.trim() };
@@ -145,6 +176,10 @@ export default function URLShortener() {
   };
 
   const getStats = async (shortCode: string) => {
+    if (!token) return;
+    
+    const apiRequest = createApiRequest(token);
+    
     try {
       const response = await apiRequest(`/api/stats/${shortCode}`);
       if (response.ok) {
@@ -156,24 +191,85 @@ export default function URLShortener() {
     }
   };
 
+  const deleteUrl = async (shortCode: string, originalUrl: string) => {
+    if (!token) return;
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this URL?\n\nShort URL: ${shortCode}\nOriginal: ${originalUrl}\n\nThis action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+
+    const apiRequest = createApiRequest(token);
+
+    try {
+      const response = await apiRequest(`/api/urls/${shortCode}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove from recent URLs list
+        const updatedUrls = recentUrls.filter(item => item.short_code !== shortCode);
+        setRecentUrls(updatedUrls);
+        localStorage.setItem('recentUrls', JSON.stringify(updatedUrls));
+        
+        // Show success message
+        alert('URL deleted successfully!');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to delete URL');
+      }
+    } catch (err) {
+      console.error('Failed to delete URL:', err);
+      alert(`Failed to delete URL: ${err instanceof Error ? err.message : 'Something went wrong'}`);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center justify-center gap-3">
-            <Link className="w-8 h-8 text-blue-600" />
-            URL Shortener
+    <div className="min-h-screen w-full bg-teal-100 flex justify-center">
+      <div className="max-w-2xl px-6 py-12">
+        {/* User Info Header */}
+        {user && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-teal-600 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800">Welcome, {user.username}!</h3>
+                  <p className="text-slate-600">{user.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors"
+              >
+                <LogOut className="w-5 h-5" />
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-teal-600 rounded-xl mb-8">
+            <Link2 className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-6xl font-bold text-slate-800 mb-6">
+            URL Changer
           </h1>
-          <p className="text-gray-600 text-lg">
-            Shorten your long URLs with s.casimirlundberg.fi
+          <p className="text-slate-600 text-2xl">
+            Transform your URLs and make them trackable
           </p>
         </div>
 
         {/* Main Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-white rounded-2xl p-10 mb-10 shadow-lg">
+          <form onSubmit={handleSubmit} className="space-y-8">
             <div>
-              <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="url" className="block text-xl font-bold text-slate-800 mb-4">
                 Enter your long URL
               </label>
               <input
@@ -181,14 +277,16 @@ export default function URLShortener() {
                 id="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://example.com/very/long/url/path"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                placeholder="https://example.com/very/long/url/path/to/your/content"
+                className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-300 rounded-xl 
+                         text-slate-800 text-xl placeholder-slate-500 focus:border-teal-500 
+                         outline-none transition-colors"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="customCode" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="customCode" className="block text-xl font-bold text-slate-800 mb-4">
                 Custom short code (optional)
               </label>
               <input
@@ -196,19 +294,23 @@ export default function URLShortener() {
                 id="customCode"
                 value={customCode}
                 onChange={(e) => setCustomCode(e.target.value)}
-                placeholder="my-custom-link"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                placeholder="my-awesome-link"
+                className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-300 rounded-xl 
+                         text-slate-800 text-xl placeholder-slate-500 focus:border-teal-500 
+                         outline-none transition-colors"
                 pattern="[a-zA-Z0-9_-]+"
                 maxLength={20}
               />
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-slate-600 mt-3 text-lg">
                 Only letters, numbers, hyphens, and underscores allowed
               </p>
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-700">{error}</p>
+              <div className="bg-red-100 border-2 border-red-400 rounded-xl p-6">
+                <p className="text-red-800 text-xl font-semibold">
+                  {error}
+                </p>
               </div>
             )}
 
@@ -216,104 +318,161 @@ export default function URLShortener() {
               type="submit"
               disabled={loading || !url.trim()}
               className={clsx(
-                'w-full py-3 px-6 rounded-lg font-semibold text-white transition-colors',
+                'w-full py-6 px-8 rounded-xl font-bold text-2xl transition-colors shadow-lg',
                 loading || !url.trim()
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  ? 'bg-slate-400 cursor-not-allowed text-slate-600'
+                  : 'bg-teal-600 hover:bg-teal-700 text-white'
               )}
             >
-              {loading ? 'Shortening...' : 'Shorten URL'}
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-slate-600 border-t-transparent inline-block mr-4"></div>
+                  Shortening...
+                </>
+              ) : (
+                'Shorten URL'
+              )}
             </button>
           </form>
 
           {result && (
-            <div className="mt-8 p-6 bg-green-50 border border-green-200 rounded-lg">
-              <h3 className="text-lg font-semibold text-green-800 mb-4">
-                Your shortened URL is ready!
-              </h3>
-              <div className="flex items-center gap-3 mb-3">
-                <input
-                  type="text"
-                  value={result.short_url}
-                  readOnly
-                  className="flex-1 px-3 py-2 bg-white border border-green-300 rounded focus:outline-none"
-                />
-                <button
-                  onClick={() => copyToClipboard(result.short_url)}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
+            <div className="mt-10 p-8 bg-green-100 border-2 border-green-400 rounded-2xl shadow-lg">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
+                  <Check className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-green-800">
+                  Your shortened URL is ready!
+                </h3>
               </div>
-              <div className="text-sm text-green-700">
-                Original: <span className="break-all">{result.original_url}</span>
+              
+              <div className="bg-white rounded-xl p-6 border border-slate-200">
+                <div className="flex items-center gap-4 mb-4">
+                  <input
+                    type="text"
+                    value={result.short_url}
+                    readOnly
+                    className="flex-1 px-4 py-4 bg-slate-50 border-2 border-slate-300 rounded-lg text-slate-800 
+                             text-xl font-mono focus:outline-none"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(result.short_url)}
+                    className={clsx(
+                      'px-6 py-4 rounded-lg font-bold text-xl transition-colors shadow-lg',
+                      copied 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-teal-600 hover:bg-teal-700 text-white'
+                    )}
+                  >
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                
+                <div className="text-slate-700 text-lg">
+                  <span className="font-semibold">Original:</span>{' '}
+                  <span className="break-all">{result.original_url}</span>
+                </div>
               </div>
             </div>
           )}
         </div>
 
+        {/* Recent URLs Dropdown */}
         {recentUrls.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900">Recent URLs</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={refreshRecentUrls}
-                  className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                >
-                  Refresh Stats
-                </button>
-                <button
-                  onClick={clearRecentUrls}
-                  className="px-4 py-2 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                >
-                  Clear History
-                </button>
-              </div>
-            </div>
-            <div className="space-y-4">
-              {recentUrls.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <a
-                        href={item.short_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        {item.short_url}
-                      </a>
-                      <ExternalLink className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <div className="text-sm text-gray-600 truncate">
-                      {item.original_url}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 flex gap-4">
-                      <span>Created: {new Date(item.created_at).toLocaleDateString()}</span>
-                      <span>Clicks: {item.click_count}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    <button
-                      onClick={() => getStats(item.short_code)}
-                      className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      <BarChart3 className="w-4 h-4" />
-                      Stats
-                    </button>
-                    <button
-                      onClick={() => copyToClipboard(item.short_url)}
-                      className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-                    >
-                      <Copy className="w-4 h-4" />
-                      Copy
-                    </button>
-                  </div>
+          <div className="bg-white rounded-2xl p-8 shadow-lg border border-slate-200">
+            <div className="flex items-center justify-between mb-6">
+              <button
+                onClick={() => setShowRecentUrls(!showRecentUrls)}
+                className="flex items-center gap-4 text-2xl font-bold text-slate-800 hover:text-teal-600 transition-colors"
+              >
+                Recent URLs ({recentUrls.length})
+                {showRecentUrls ? (
+                  <ChevronUp className="w-8 h-8" />
+                ) : (
+                  <ChevronDown className="w-8 h-8" />
+                )}
+              </button>
+              
+              {showRecentUrls && (
+                <div className="flex gap-4">
+                  <button
+                    onClick={refreshRecentUrls}
+                    className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-colors shadow-lg"
+                  >
+                    Refresh Stats
+                  </button>
+                  <button
+                    onClick={clearRecentUrls}
+                    className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-colors shadow-lg"
+                  >
+                    Clear History
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
+            
+            {showRecentUrls && (
+              <div className="space-y-4">
+                {recentUrls.map((item) => (
+                  <div key={item.id} className="bg-slate-50 border border-slate-200 rounded-xl p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-4">
+                          <a
+                            href={item.short_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-teal-600 hover:text-teal-700 font-mono text-xl font-semibold hover:underline transition-colors"
+                          >
+                            {item.short_url}
+                          </a>
+                          <ExternalLink className="w-5 h-5 text-slate-500" />
+                        </div>
+                        
+                        <div className="text-slate-700 mb-4 text-lg break-all">
+                          {item.original_url}
+                        </div>
+                        
+                        <div className="flex items-center gap-8 text-slate-600 text-lg">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span>Created: {new Date(item.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4" />
+                            <span>Clicks: {item.click_count}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-4 ml-8">
+                        <button
+                          onClick={() => getStats(item.short_code)}
+                          className="flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-colors shadow-lg"
+                        >
+                          <BarChart3 className="w-5 h-5" />
+                          Stats
+                        </button>
+                        <button
+                          onClick={() => copyToClipboard(item.short_url)}
+                          className="flex items-center gap-2 px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors shadow-lg"
+                        >
+                          <Copy className="w-5 h-5" />
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => deleteUrl(item.short_code, item.original_url)}
+                          className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-colors shadow-lg"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

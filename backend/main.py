@@ -1,18 +1,21 @@
-from fastapi import FastAPI, HTTPException, Depends, Request, Header
+from fastapi import FastAPI, HTTPException, Depends, Request, Header, status
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from pydantic import BaseModel, HttpUrl, validator
+from pydantic import BaseModel, HttpUrl, validator, EmailStr
 import string
 import random
 from datetime import datetime, timedelta
 from typing import Optional
-from database import SessionLocal, engine, Base, URLMapping
+from database import SessionLocal, engine, Base, URLMapping, User
+from auth import verify_password, get_password_hash, create_access_token, verify_token, ACCESS_TOKEN_EXPIRE_MINUTES
 import re
 import os
 import logging
@@ -45,6 +48,7 @@ if ENVIRONMENT == "production" and os.getenv("SENTRY_DSN") and SENTRY_AVAILABLE:
     )
 
 limiter = Limiter(key_func=get_remote_address)
+security = HTTPBearer()
 
 logging.basicConfig(
     level=logging.INFO if ENVIRONMENT == "production" else logging.DEBUG,
@@ -71,7 +75,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"] if ENVIRONMENT == "development" else ["GET", "POST", "OPTIONS"],
+    allow_methods=["*"] if ENVIRONMENT == "development" else ["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -86,6 +90,28 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """Get the current authenticated user"""
+    token = credentials.credentials
+    token_data = verify_token(token)
+    
+    user = db.query(User).filter(User.id == token_data["user_id"]).first()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return user
+
+def authenticate_user(db: Session, username: str, password: str):
+    """Authenticate a user by username and password"""
+    user = db.query(User).filter(User.username == username).first()
+    if not user or not verify_password(password, user.hashed_password):
+        return False
+    return user
 
 class URLCreate(BaseModel):
     url: HttpUrl
@@ -132,6 +158,41 @@ class URLStats(BaseModel):
     click_count: int
     created_at: datetime
 
+# Authentication Models
+class UserCreate(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if len(v) < 3 or len(v) > 50:
+            raise ValueError('Username must be between 3 and 50 characters')
+        if not re.match(r'^[a-zA-Z0-9_]+$', v):
+            raise ValueError('Username can only contain letters, numbers, and underscores')
+        return v
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters long')
+        return v
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    is_active: bool
+    created_at: datetime
+
 def generate_short_code(length: int = 6) -> str:
     characters = string.ascii_letters + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
@@ -139,13 +200,103 @@ def generate_short_code(length: int = 6) -> str:
 def is_valid_custom_code(code: str) -> bool:
     return re.match(r'^[a-zA-Z0-9_-]+$', code) and len(code) <= 20
 
+# Authentication Endpoints
+@app.post("/api/register", response_model=UserResponse)
+@limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
+async def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
+    """Register a new user"""
+    # Check if username already exists
+    if db.query(User).filter(User.username == user_data.username).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered"
+        )
+    
+    # Check if email already exists
+    if db.query(User).filter(User.email == user_data.email).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create new user
+    hashed_password = get_password_hash(user_data.password)
+    user = User(
+        username=user_data.username,
+        email=user_data.email,
+        hashed_password=hashed_password
+    )
+    
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    logger.info(f"New user registered: {user.username}")
+    
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        is_active=user.is_active,
+        created_at=user.created_at
+    )
+
+@app.post("/api/login", response_model=Token)
+@limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
+async def login(request: Request, user_data: UserLogin, db: Session = Depends(get_db)):
+    """Authenticate user and return access token"""
+    user = authenticate_user(db, user_data.username, user_data.password)
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username, "user_id": user.id},
+        expires_delta=access_token_expires
+    )
+    
+    logger.info(f"User logged in: {user.username}")
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/me", response_model=UserResponse)
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Get current user information"""
+    return UserResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        is_active=current_user.is_active,
+        created_at=current_user.created_at
+    )
+
+@app.get("/api/my-urls", response_model=list[URLResponse])
+async def get_my_urls(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Get all URLs for the current user"""
+    urls = db.query(URLMapping).filter(URLMapping.user_id == current_user.id).order_by(URLMapping.created_at.desc()).all()
+    
+    return [URLResponse(
+        id=url.id,
+        original_url=url.original_url,
+        short_code=url.short_code,
+        short_url=f"{BASE_URL}/{url.short_code}",
+        created_at=url.created_at,
+        click_count=url.click_count,
+        expires_at=url.expires_at
+    ) for url in urls]
+
 @app.post("/api/shorten", response_model=URLResponse)
 @limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
 async def shorten_url(
     request: Request,
     url_data: URLCreate, 
     db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
+    current_user: User = Depends(get_current_user)
 ):
     if url_data.custom_code:
         if not is_valid_custom_code(url_data.custom_code):
@@ -166,7 +317,8 @@ async def shorten_url(
     url_mapping = URLMapping(
         original_url=str(url_data.url),
         short_code=short_code,
-        expires_at=url_data.expires_at
+        expires_at=url_data.expires_at,
+        user_id=current_user.id
     )
     
     db.add(url_mapping)
@@ -200,11 +352,14 @@ async def redirect_url(request: Request, short_code: str, db: Session = Depends(
     return RedirectResponse(url=url_mapping.original_url, status_code=308)
 
 @app.get("/api/stats/{short_code}", response_model=URLStats)
-async def get_url_stats(short_code: str, db: Session = Depends(get_db)):
-    url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
+async def get_url_stats(short_code: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    url_mapping = db.query(URLMapping).filter(
+        URLMapping.short_code == short_code,
+        URLMapping.user_id == current_user.id
+    ).first()
     
     if not url_mapping:
-        raise HTTPException(status_code=404, detail="Short URL not found")
+        raise HTTPException(status_code=404, detail="Short URL not found or not authorized")
     
     return URLStats(
         short_code=url_mapping.short_code,
@@ -252,6 +407,37 @@ async def metrics(db: Session = Depends(get_db), api_key: str = Depends(verify_a
     except Exception as e:
         logger.error(f"Metrics collection failed: {e}")
         raise HTTPException(status_code=500, detail="Metrics collection failed")
+
+@app.delete("/api/urls/{short_code}")
+@limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
+async def delete_url(
+    request: Request,
+    short_code: str, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a URL mapping by short code"""
+    url_mapping = db.query(URLMapping).filter(
+        URLMapping.short_code == short_code,
+        URLMapping.user_id == current_user.id
+    ).first()
+    
+    if not url_mapping:
+        raise HTTPException(status_code=404, detail="Short URL not found or not authorized")
+    
+    try:
+        db.delete(url_mapping)
+        db.commit()
+        logger.info(f"Deleted URL mapping: {short_code} by user: {current_user.username}")
+        return {"message": f"URL '{short_code}' deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete URL mapping {short_code}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete URL")
+
+# Mount static files at the end so they don't interfere with API routes
+if ENVIRONMENT == "production" and os.path.exists("/app/static"):
+    app.mount("/", StaticFiles(directory="/app/static", html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
