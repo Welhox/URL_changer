@@ -18,7 +18,7 @@ interface URLStats {
   created_at: string;
 }
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
 
 export default function URLShortener() {
   const [url, setUrl] = useState('');
