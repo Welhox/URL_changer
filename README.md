@@ -264,8 +264,8 @@ LOG_LEVEL=INFO
 ### DNS Requirements
 
 ```
-A     coventure.es         → YOUR_SERVER_IP
-A     www.coventure.es     → YOUR_SERVER_IP
+A     domain.xyz         → YOUR_SERVER_IP
+A     www.domain.xyz     → YOUR_SERVER_IP
 ```
 
 ---
@@ -365,7 +365,7 @@ Create a shortened URL.
   "id": 1,
   "original_url": "https://example.com/very/long/url",
   "short_code": "my-link",
-  "short_url": "https://coventure.es/my-link",
+  "short_url": "https://DOMAIN_HERE/my-link",
   "created_at": "2024-01-01T12:00:00",
   "click_count": 0,
   "expires_at": "2024-12-31T23:59:59"
@@ -489,13 +489,13 @@ npm test
 ### API Testing
 ```bash
 # Test URL changing
-curl -X POST "https://coventure.es/api/shorten" \
+curl -X POST "https://DOMAIN_HERE/api/shorten" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_API_KEY" \
   -d '{"url": "https://example.com"}'
 
 # Test redirect
-curl -I https://coventure.es/SHORTENED_CODE
+curl -I https://DOMAIN_HERE/SHORTENED_CODE
 ```
 
 ---
@@ -513,14 +513,6 @@ curl -I https://coventure.es/SHORTENED_CODE
 ## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🆘 Support & Documentation
-
-- **📖 Deployment Guide**: [SIMPLE-DEPLOY.md](SIMPLE-DEPLOY.md)
-- **🚨 Issues**: [GitHub Issues](https://github.com/your-username/url-changer/issues)
-- **📧 Contact**: admin@coventure.es
 
 ---
 
