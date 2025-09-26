@@ -184,75 +184,56 @@ make backup        # Backup current data
 make prod          # Start production server
 ```
 
-### Production Deployment
+### 🌐 Production Deployment
 
-#### 💰 **Option 1: Budget Deployment ($3-5/month)**
+**Recommended**: Use Google Cloud Run with GitHub integration
+
 ```bash
-# One-command deployment for small VPS (512MB RAM)
-./scripts/deploy-lightweight.sh your-domain.com
+# 1. Create your .env files manually
+cp .env.example .env
+cp .env.example .env.production
 
-# Then set up free SSL
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+# 2. Connect GitHub to Google Cloud Console
+# 3. Set up secrets in Google Secret Manager  
+# 4. Deploy directly from GitHub
+
+# That's it! Auto-deploy on every push.
 ```
-*Perfect for personal use, handles ~100 URLs/day*
 
-#### 🐳 **Option 2: Full Production ($10-20/month)**  
-```bash
-# 1. Configure domain and environment
-./scripts/setup-domain.sh your-domain.com
-cp .env.example .env && nano .env
-
-# 2. Deploy with full Docker stack
-DOMAIN=your-domain.com docker-compose -f docker-compose.prod.yml up -d
-
-# 3. Verify deployment  
-curl https://your-domain.com/api/health
-```
-*For business use with PostgreSQL and monitoring*
-
-**📖 Full deployment guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
+**📖 Simple deployment guide**: [SIMPLE-DEPLOY.md](SIMPLE-DEPLOY.md)
 
 ---
 
 ## � Project Structure
 
 ```
+```
 url-changer/
 ├── backend/                    # FastAPI Backend
-│   ├── Makefile               # 🔧 Comprehensive development workflow
 │   ├── main.py                # FastAPI application entry point
 │   ├── database.py            # Database models and configuration
 │   ├── requirements.txt       # Production dependencies
-│   ├── requirements-dev.txt   # Development dependencies (SQLite-based)
 │   ├── Dockerfile            # Production container configuration
-│   ├── .env.example          # Environment variables template
-│   ├── venv/                 # Python virtual environment
-│   ├── url_shortener.db      # SQLite database (development)
-│   └── server.log            # Development server logs
+│   └── venv/                 # Python virtual environment
 │
 ├── frontend/                   # React Frontend
-│   ├── package.json          # Node.js dependencies and scripts
 │   ├── src/
 │   │   ├── App.tsx           # Main React application
 │   │   ├── URLShortener.tsx  # URL shortening interface
-│   │   └── main.tsx          # Application entry point
-│   ├── public/               # Static assets
-│   ├── .env.development      # Development API configuration
-│   └── .env.production       # Production API configuration
+│   │   └── AuthForm.tsx      # Authentication form
+│   ├── Dockerfile            # Production container configuration
+│   └── package.json          # Node.js dependencies and scripts
 │
-├── scripts/
-│   └── setup-ssl.sh          # Automated SSL certificate setup
-├── docker-compose.prod.yml    # Production Docker orchestration
-├── nginx.conf                # Nginx reverse proxy configuration
-├── init.sql                  # PostgreSQL initialization script
-├── DEPLOYMENT.md             # 📖 Comprehensive deployment guide
-└── README.md                 # 📋 This documentation
+├── .env.example              # Environment variables template
+├── docker-compose.yml        # Development Docker setup
+├── SIMPLE-DEPLOY.md         # � Simple deployment guide
+└── README.md                # 📋 This documentation
+```
 
 Key Files:
-• backend/Makefile - Complete development workflow automation
-• DEPLOYMENT.md - Production deployment instructions
-• docker-compose.prod.yml - Production container setup
-• scripts/setup-ssl.sh - Automated SSL certificate management
+• SIMPLE-DEPLOY.md - Simple Google Cloud deployment guide
+• .env.example - Environment variables template
+• Dockerfile (backend & frontend) - Production containers
 ```
 
 ---
@@ -538,7 +519,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support & Documentation
 
-- **📖 Deployment Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
+- **📖 Deployment Guide**: [SIMPLE-DEPLOY.md](SIMPLE-DEPLOY.md)
 - **🚨 Issues**: [GitHub Issues](https://github.com/your-username/url-shortener/issues)
 - **📧 Contact**: admin@coventure.es
 
