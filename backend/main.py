@@ -279,6 +279,7 @@ async def register(request: Request, user_data: UserCreate, db: Session = Depend
         username=user.username,
         email=user.email,
         is_active=user.is_active,
+        is_admin=user.is_admin,
         created_at=user.created_at
     )
 
@@ -377,19 +378,106 @@ async def shorten_url(
         expires_at=url_mapping.expires_at
     )
 
+# Bot-friendly endpoint using API key authentication
+@app.post("/api/bot/shorten", response_model=URLResponse)
+@limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
+async def bot_shorten_url(
+    request: Request,
+    url_data: URLCreate, 
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Slackbot-friendly URL shortening endpoint that uses API key authentication.
+    Perfect for automated services, bots, and integrations.
+    """
+    # Create or get bot service user
+    bot_user = db.query(User).filter(User.username == "slackbot").first()
+    if not bot_user:
+        # Create bot user if it doesn't exist
+        bot_user = User(
+            username="slackbot",
+            email="bot@coventur.es", 
+            password_hash=get_password_hash("bot-no-login"),
+            is_admin=False
+        )
+        db.add(bot_user)
+        db.commit()
+        db.refresh(bot_user)
+    
+    if url_data.custom_code:
+        if not is_valid_custom_code(url_data.custom_code):
+            raise HTTPException(status_code=400, detail="Invalid custom code format")
+        
+        existing = db.query(URLMapping).filter(URLMapping.short_code == url_data.custom_code).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Custom code already exists")
+        
+        short_code = url_data.custom_code
+    else:
+        while True:
+            short_code = generate_short_code()
+            existing = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
+            if not existing:
+                break
+    
+    url_mapping = URLMapping(
+        original_url=str(url_data.url),
+        short_code=short_code,
+        expires_at=url_data.expires_at,
+        user_id=bot_user.id
+    )
+    
+    db.add(url_mapping)
+    db.commit()
+    db.refresh(url_mapping)
+    
+    logger.info(f"Bot created short URL: {short_code} -> {url_mapping.original_url}")
+    
+    return URLResponse(
+        id=url_mapping.id,
+        original_url=url_mapping.original_url,
+        short_code=url_mapping.short_code,
+        short_url=f"{BASE_URL}/{url_mapping.short_code}",
+        created_at=url_mapping.created_at,
+        click_count=url_mapping.click_count,
+        expires_at=url_mapping.expires_at
+    )
+
 @app.get("/{short_code}")
 @limiter.limit("100/minute")
 async def redirect_url(request: Request, short_code: str, db: Session = Depends(get_db)):
+    # Enhanced logging for debugging production issues
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    logger.info(f"Redirect request for '{short_code}' from {client_ip}, User-Agent: {user_agent}")
+    
     url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
     
     if not url_mapping:
+        logger.warning(f"Short URL not found: {short_code}")
         raise HTTPException(status_code=404, detail="Short URL not found")
     
     if url_mapping.expires_at and datetime.utcnow() > url_mapping.expires_at:
+        logger.warning(f"Expired short URL accessed: {short_code}")
         raise HTTPException(status_code=410, detail="Short URL has expired")
     
-    url_mapping.click_count += 1
-    db.commit()
+    # Log before increment for debugging
+    old_count = url_mapping.click_count
+    logger.info(f"Incrementing click count for '{short_code}' from {old_count} to {old_count + 1}")
+    
+    # Increment click count and commit immediately
+    try:
+        url_mapping.click_count += 1
+        db.commit()
+        db.refresh(url_mapping)  # Refresh to ensure the change is persisted
+        logger.info(f"✅ Click count successfully updated for '{short_code}': {old_count} → {url_mapping.click_count}")
+        logger.info(f"Database commit successful for '{short_code}', redirecting to: {url_mapping.original_url}")
+    except Exception as e:
+        logger.error(f"❌ Failed to increment click count for '{short_code}': {e}")
+        logger.error(f"Database error details: {type(e).__name__}: {str(e)}")
+        db.rollback()
+        # Continue with redirect even if click count fails
     
     return RedirectResponse(url=url_mapping.original_url, status_code=308)
 
@@ -403,12 +491,87 @@ async def get_url_stats(short_code: str, current_user: User = Depends(get_curren
     if not url_mapping:
         raise HTTPException(status_code=404, detail="Short URL not found or not authorized")
     
+    # Log the stats request for debugging
+    logger.info(f"Stats requested for '{short_code}': {url_mapping.click_count} clicks")
+    
     return URLStats(
         short_code=url_mapping.short_code,
         original_url=url_mapping.original_url,
         click_count=url_mapping.click_count,
         created_at=url_mapping.created_at
     )
+
+# Bot-friendly stats endpoint using API key authentication
+@app.get("/api/bot/stats/{short_code}", response_model=URLStats)
+async def get_bot_url_stats(short_code: str, api_key: str = Depends(verify_api_key), db: Session = Depends(get_db)):
+    """
+    Slackbot-friendly stats endpoint that uses API key authentication.
+    Returns stats for any URL created by the bot user.
+    """
+    bot_user = db.query(User).filter(User.username == "slackbot").first()
+    if not bot_user:
+        raise HTTPException(status_code=404, detail="Bot user not found")
+    
+    url_mapping = db.query(URLMapping).filter(
+        URLMapping.short_code == short_code,
+        URLMapping.user_id == bot_user.id
+    ).first()
+    
+    if not url_mapping:
+        raise HTTPException(status_code=404, detail="Short URL not found or not created by bot")
+    
+    logger.info(f"Bot stats requested for '{short_code}': {url_mapping.click_count} clicks")
+    
+    return URLStats(
+        short_code=url_mapping.short_code,
+        original_url=url_mapping.original_url,
+        click_count=url_mapping.click_count,
+        created_at=url_mapping.created_at
+    )
+
+# Bot endpoint to list all bot-created URLs
+@app.get("/api/bot/urls", response_model=list[URLResponse])
+async def get_bot_urls(api_key: str = Depends(verify_api_key), db: Session = Depends(get_db)):
+    """
+    List all URLs created by the Slackbot. Useful for management and analytics.
+    """
+    bot_user = db.query(User).filter(User.username == "slackbot").first()
+    if not bot_user:
+        raise HTTPException(status_code=404, detail="Bot user not found")
+    
+    urls = db.query(URLMapping).filter(URLMapping.user_id == bot_user.id).order_by(URLMapping.created_at.desc()).limit(100).all()
+    
+    return [
+        URLResponse(
+            id=url.id,
+            original_url=url.original_url,
+            short_code=url.short_code,
+            short_url=f"{BASE_URL}/{url.short_code}",
+            created_at=url.created_at,
+            click_count=url.click_count,
+            expires_at=url.expires_at
+        ) for url in urls
+    ]
+
+# Debug endpoint to help troubleshoot click count issues
+@app.get("/api/debug/url/{short_code}")
+async def debug_url_info(short_code: str, db: Session = Depends(get_db)):
+    """Debug endpoint to check URL details - remove in production after fixing"""
+    url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
+    
+    if not url_mapping:
+        return {"error": "Short URL not found", "short_code": short_code}
+    
+    return {
+        "short_code": url_mapping.short_code,
+        "original_url": url_mapping.original_url,
+        "click_count": url_mapping.click_count,
+        "created_at": url_mapping.created_at.isoformat() if url_mapping.created_at else None,
+        "expires_at": url_mapping.expires_at.isoformat() if url_mapping.expires_at else None,
+        "user_id": url_mapping.user_id,
+        "database_url": os.getenv("DATABASE_URL", "Not set")[:30] + "..." if os.getenv("DATABASE_URL") else "Not set",
+        "environment": ENVIRONMENT
+    }
 
 @app.get("/api/health")
 async def health_check(db: Session = Depends(get_db)):
