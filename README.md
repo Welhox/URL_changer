@@ -2,7 +2,13 @@
 
 > **A professional, production-ready URL changing service built with FastAPI, React, and PostgreSQL**
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.t└── README.md                # 📋 This documentation
+```
+
+Key Files:
+• .env.example - Environment variables template  
+• Dockerfile (backend & frontend) - Production containers
+• docker-compose.yml - Development environment setupcom/)
 [![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
@@ -186,21 +192,66 @@ make prod          # Start production server
 
 ### 🌐 Production Deployment
 
-**Recommended**: Use Google Cloud Run with GitHub integration
+#### Quick Deploy Options
 
+**Docker (Recommended):**
 ```bash
-# 1. Create your .env files manually
+# 1. Configure environment
 cp .env.example .env
-cp .env.example .env.production
+# Edit .env with your settings
 
-# 2. Connect GitHub to Google Cloud Console
-# 3. Set up secrets in Google Secret Manager  
-# 4. Deploy directly from GitHub
-
-# That's it! Auto-deploy on every push.
+# 2. Deploy with Docker Compose  
+docker-compose up -d
 ```
 
-**📖 Simple deployment guide**: [SIMPLE-DEPLOY.md](SIMPLE-DEPLOY.md)
+**Google Cloud Run:**
+```bash
+# 1. Build and deploy
+gcloud run deploy url-changer --source . \
+  --platform managed --region us-central1 \
+  --allow-unauthenticated
+
+# 2. Configure custom domain (optional)
+gcloud run domain-mappings create --service url-changer \
+  --domain your-domain.com
+```
+
+**VPS/Server:**
+```bash
+# 1. Setup environment
+make setup
+make install-prod
+
+# 2. Configure reverse proxy (nginx recommended)
+# 3. Start production server
+make prod
+```
+
+---
+
+## 🤖 Slack Bot Integration
+
+The URL changer includes a fully integrated Slack bot with user-specific URL collections:
+
+### Available Commands
+- `/transmute <url> [custom_code]` - Create shortened URLs
+- `/urlstats [short_code|all]` - View URL statistics  
+- `/urlremove <short_code>` - Remove URLs
+
+### Key Features
+- **User Isolation**: Each Slack user maintains their own private URL collection
+- **Rich Responses**: Formatted blocks with click counts and creation dates
+- **Security**: Proper Slack signature verification and rate limiting
+
+### Setup
+```bash
+# Configure Slack integration in .env
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_SIGNING_SECRET=your-signing-secret
+
+# Configure slash commands to point to:
+# POST https://your-domain.com/api/slack/events
+```
 
 ---
 
@@ -259,6 +310,10 @@ RATE_LIMIT_PER_HOUR=1000
 
 # Logging
 LOG_LEVEL=INFO
+
+# Slack Bot Integration (optional)
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_SIGNING_SECRET=your-signing-secret
 ```
 
 ### DNS Requirements

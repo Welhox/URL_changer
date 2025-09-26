@@ -27,14 +27,9 @@ class SlackBot:
         
     def verify_slack_request(self, request_body: bytes, headers: Dict[str, str]) -> bool:
         """Verify that the request came from Slack"""
-        # Skip verification in development mode
-        if os.getenv("ENVIRONMENT", "development") == "development":
-            logger.info("Development mode - skipping Slack signature verification")
-            return True
-            
         if not self.signing_secret:
-            logger.warning("SLACK_SIGNING_SECRET not set - skipping verification")
-            return True
+            logger.error("SLACK_SIGNING_SECRET not set - cannot verify Slack requests")
+            return False
             
         timestamp = headers.get('x-slack-request-timestamp', '')
         signature = headers.get('x-slack-signature', '')
@@ -70,10 +65,12 @@ class SlackBot:
                 return await self._handle_shorten_command(text, user_id, user_name)
             elif command == '/urlstats':
                 return await self._handle_stats_command(text, user_id, user_name)
+            elif command == '/urlremove':
+                return await self._handle_remove_command(text, user_id, user_name)
             else:
                 return {
                     "response_type": "ephemeral",
-                    "text": f"Unknown command: {command}. Available commands: /transmute, /urlstats"
+                    "text": f"Unknown command: {command}. Available commands: /transmute, /urlstats, /urlremove"
                 }
         except Exception as e:
             logger.error(f"Error handling command {command}: {str(e)}")
@@ -349,6 +346,109 @@ class SlackBot:
             return {
                 "response_type": "ephemeral",
                 "text": f"❌ Failed to get all stats: {str(e)}"
+            }
+
+    async def _handle_remove_command(self, text: str, user_id: str, user_name: str) -> Dict[str, Any]:
+        """Handle /urlremove command"""
+        if not text:
+            return {
+                "response_type": "ephemeral",
+                "text": "❌ Please provide a short code to remove. Usage: `/urlremove <short_code>`"
+            }
+
+        short_code = text.strip()
+        
+        try:
+            db = SessionLocal()
+            
+            # Get bot username for this Slack user
+            bot_username = f"slackbot-{user_name}"
+            bot_user = db.query(User).filter(User.username == bot_username).first()
+            
+            if not bot_user:
+                db.close()
+                return {
+                    "response_type": "ephemeral",
+                    "text": f"📭 No URLs found for {user_name}.\n💡 Use `/transmute <url>` to create your first shortened URL!"
+                }
+            
+            # Find the URL mapping that belongs to this user
+            url_mapping = db.query(URLMapping).filter(
+                URLMapping.short_code == short_code,
+                URLMapping.user_id == bot_user.id
+            ).first()
+            
+            if not url_mapping:
+                db.close()
+                return {
+                    "response_type": "ephemeral",
+                    "text": f"❌ URL with code `{short_code}` not found in your collection.\n💡 Use `/urlstats all` to see all your URLs"
+                }
+            
+            # Store info before deletion for confirmation message
+            original_url = url_mapping.original_url
+            click_count = url_mapping.click_count
+            
+            # Delete the URL mapping
+            db.delete(url_mapping)
+            db.commit()
+            db.close()
+            
+            # Truncate long URLs for display
+            display_url = original_url if len(original_url) <= 60 else original_url[:57] + "..."
+            
+            response = {
+                "response_type": "ephemeral",
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"🗑️ *URL Removed Successfully*"
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "fields": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*Short Code:*\n`{short_code}`"
+                            },
+                            {
+                                "type": "mrkdwn", 
+                                "text": f"*Click Count:*\n{click_count}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f"Original URL: {display_url}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "mrkdwn",
+                                "text": "⚠️ This short URL is now permanently inactive."
+                            }
+                        ]
+                    }
+                ]
+            }
+            
+            return response
+            
+        except Exception as e:
+            db.close() if 'db' in locals() else None
+            logger.error(f"Error removing URL {short_code} for {user_name}: {str(e)}")
+            return {
+                "response_type": "ephemeral",
+                "text": f"❌ Failed to remove URL: {str(e)}"
             }
 
 # Global bot instance

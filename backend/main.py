@@ -17,6 +17,8 @@ from typing import Optional
 from database import SessionLocal, engine, Base, URLMapping, User
 from auth import verify_password, get_password_hash, create_access_token, verify_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from slack_bot import slack_bot
+# Removed overly complex security imports
+# Removed complex security middleware
 import re
 import os
 import logging
@@ -30,8 +32,15 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 DOMAIN = os.getenv("DOMAIN", "coventur.es")
 BASE_URL = ("http://localhost:8000" if ENVIRONMENT == "development" 
            else os.getenv("BASE_URL", f"https://{DOMAIN}"))
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
-API_KEY = os.getenv("API_KEY", "default-api-key")
+
+# Security: Require secrets to be set in environment variables
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable must be set")
+
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    raise ValueError("API_KEY environment variable must be set")
 ALLOWED_ORIGINS = (["*"] if ENVIRONMENT == "development" 
                   else os.getenv("ALLOWED_ORIGINS", f"https://{DOMAIN},https://www.{DOMAIN}").split(","))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
@@ -90,8 +99,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# HTTPS Enforcement Middleware
+@app.middleware("http")
+async def https_redirect_middleware(request: Request, call_next):
+    """Enforce HTTPS in production by redirecting HTTP requests"""
+    if ENVIRONMENT == "production":
+        # Check if request is HTTP and not from a health check or internal service
+        if request.url.scheme == "http" and not request.headers.get("x-forwarded-proto") == "https":
+            # Skip redirect for health checks and internal endpoints
+            if not request.url.path.startswith(("/api/health", "/health")):
+                https_url = request.url.replace(scheme="https")
+                return RedirectResponse(url=str(https_url), status_code=301)
+    
+    response = await call_next(request)
+    return response
+
 def verify_api_key(x_api_key: str = Header(None)):
-    if ENVIRONMENT == "production" and x_api_key != API_KEY:
+    if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
     return x_api_key
 
@@ -343,6 +367,14 @@ async def shorten_url(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    # Security: Limit URLs per user to prevent abuse
+    user_url_count = db.query(URLMapping).filter(URLMapping.user_id == current_user.id).count()
+    if user_url_count >= 100:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Maximum of 100 URLs per user exceeded. Please delete some URLs first."
+        )
+    
     if url_data.custom_code:
         if not is_valid_custom_code(url_data.custom_code):
             raise HTTPException(status_code=400, detail="Invalid custom code format")
@@ -406,6 +438,14 @@ async def bot_shorten_url(
         db.add(bot_user)
         db.commit()
         db.refresh(bot_user)
+    
+    # Security: Limit URLs per bot user to prevent abuse (higher limit for bots)
+    bot_url_count = db.query(URLMapping).filter(URLMapping.user_id == bot_user.id).count()
+    if bot_url_count >= 500:  # Higher limit for bot usage
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Maximum of 500 URLs per bot exceeded. Please contact administrator."
+        )
     
     if url_data.custom_code:
         if not is_valid_custom_code(url_data.custom_code):
@@ -481,6 +521,16 @@ async def redirect_url(request: Request, short_code: str, db: Session = Depends(
         db.rollback()
         # Continue with redirect even if click count fails
     
+    # Basic validation - just ensure URL exists
+    if not url_mapping.original_url:
+        raise HTTPException(status_code=400, detail="Invalid URL")
+    
+    # Security logging: Log redirects to potentially suspicious domains for monitoring
+    suspicious_domains = ["bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly"]
+    url_lower = url_mapping.original_url.lower()
+    if any(domain in url_lower for domain in suspicious_domains):
+        logger.warning(f"SECURITY: Redirect to suspicious nested URL shortener: {short_code} -> {url_mapping.original_url}")
+    
     return RedirectResponse(url=url_mapping.original_url, status_code=308)
 
 @app.get("/api/stats/{short_code}", response_model=URLStats)
@@ -555,10 +605,10 @@ async def get_bot_urls(api_key: str = Depends(verify_api_key), db: Session = Dep
         ) for url in urls
     ]
 
-# Debug endpoint to help troubleshoot click count issues
+# Debug endpoint to help troubleshoot click count issues (sanitized for security)
 @app.get("/api/debug/url/{short_code}")
 async def debug_url_info(short_code: str, db: Session = Depends(get_db)):
-    """Debug endpoint to check URL details - remove in production after fixing"""
+    """Debug endpoint to check URL details - sanitized to prevent information disclosure"""
     url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
     
     if not url_mapping:
@@ -571,8 +621,8 @@ async def debug_url_info(short_code: str, db: Session = Depends(get_db)):
         "created_at": url_mapping.created_at.isoformat() if url_mapping.created_at else None,
         "expires_at": url_mapping.expires_at.isoformat() if url_mapping.expires_at else None,
         "user_id": url_mapping.user_id,
-        "database_url": os.getenv("DATABASE_URL", "Not set")[:30] + "..." if os.getenv("DATABASE_URL") else "Not set",
-        "environment": ENVIRONMENT
+        # Removed database_url and environment for security
+        "status": "active" if not url_mapping.expires_at or datetime.utcnow() < url_mapping.expires_at else "expired"
     }
 
 @app.get("/api/health")
