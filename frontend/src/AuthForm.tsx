@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, LogIn, AlertCircle } from 'lucide-react';
+import { User, LogIn } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from './AuthContext';
 
@@ -30,11 +30,6 @@ export default function AuthForm() {
     }
   };
 
-  const useDemoCredentials = () => {
-    setUsername('default_user');
-    setPassword('default123');
-  };
-
   return (
     <div className="min-h-screen w-full bg-gray-900 flex justify-center items-start pt-4 sm:pt-8 pb-8 sm:pb-16 px-4">
       <div className="w-full max-w-md">
@@ -49,26 +44,6 @@ export default function AuthForm() {
           <p className="text-gray-300 text-base sm:text-lg">
             Sign in to your account
           </p>
-        </div>
-
-        {/* Demo Credentials Notice */}
-        <div className="bg-gray-800 border-2 p-3 sm:p-4 mb-4 w-full rounded-xl" style={{borderColor: '#FF7BAC'}}>
-          <div className="flex items-start gap-2 sm:gap-3">
-            <AlertCircle className="w-5 h-5 mt-1 flex-shrink-0" style={{color: '#FF7BAC'}} />
-            <div className="min-w-0 flex-1">
-              <h3 className="font-bold text-white text-sm sm:text-base mb-1">Demo Account Available</h3>
-              <p className="text-gray-300 mb-3 text-xs sm:text-sm">
-                You can use the demo account to test the application with existing URLs.
-              </p>
-              <button
-                onClick={useDemoCredentials}
-                className="px-3 py-2 text-gray-900 text-xs sm:text-sm font-semibold transition-colors rounded-lg hover:opacity-90 touch-manipulation"
-                style={{backgroundColor: '#FF7BAC'}}
-              >
-                Use Demo Account
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Auth Form */}
