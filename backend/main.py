@@ -21,12 +21,6 @@ import os
 import logging
 from dotenv import load_dotenv
 
-try:
-    import sentry_sdk
-    SENTRY_AVAILABLE = True
-except ImportError:
-    SENTRY_AVAILABLE = False
-
 load_dotenv()
 
 # Configuration
@@ -39,13 +33,6 @@ API_KEY = os.getenv("API_KEY", "default-api-key")
 ALLOWED_ORIGINS = (["*"] if ENVIRONMENT == "development" 
                   else os.getenv("ALLOWED_ORIGINS", f"https://{DOMAIN},https://www.{DOMAIN}").split(","))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
-
-if ENVIRONMENT == "production" and os.getenv("SENTRY_DSN") and SENTRY_AVAILABLE:
-    sentry_sdk.init(
-        dsn=os.getenv("SENTRY_DSN"),
-        traces_sample_rate=0.1,
-        environment=ENVIRONMENT,
-    )
 
 limiter = Limiter(key_func=get_remote_address)
 security = HTTPBearer()

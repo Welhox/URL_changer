@@ -5,6 +5,11 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci --only=production
 COPY frontend/ ./
+
+# Build arguments for frontend
+ARG VITE_API_KEY
+ENV VITE_API_KEY=$VITE_API_KEY
+
 RUN npm run build
 
 # Python backend

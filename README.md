@@ -21,7 +21,7 @@
 - **⚡ High Performance**: FastAPI backend with async support
 - **🌐 Modern Frontend**: React with TypeScript and Tailwind CSS
 - **🐳 Docker Ready**: Complete containerization with docker-compose
-- **📈 Monitoring**: Health checks, metrics, and error tracking
+- **📈 Monitoring**: Health checks and metrics
 - **🔐 SSL/TLS**: Full HTTPS support with Let's Encrypt integration
 
 ---
@@ -257,8 +257,8 @@ API_KEY=your-api-key
 RATE_LIMIT_PER_MINUTE=60
 RATE_LIMIT_PER_HOUR=1000
 
-# Monitoring
-SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+# Logging
+LOG_LEVEL=INFO
 ```
 
 ### DNS Requirements
@@ -417,8 +417,7 @@ GET /api/metrics
 
 ### Logging
 - **📝 Structured Logging**: JSON-formatted logs for easy parsing
-- **🚨 Error Tracking**: Integration with Sentry for error monitoring
-- **📈 Performance Metrics**: Request timing and database performance
+- ** Performance Metrics**: Request timing and database performance
 - **🔍 Audit Logging**: All API operations logged for security
 
 ### Metrics Available
