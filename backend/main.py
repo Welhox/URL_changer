@@ -106,9 +106,18 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     
     return user
 
+def get_admin_user(current_user: User = Depends(get_current_user)):
+    """Ensure the current user is an admin"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=403, 
+            detail="Admin access required"
+        )
+    return current_user
+
 def authenticate_user(db: Session, username: str, password: str):
-    """Authenticate a user by username and password"""
-    user = db.query(User).filter(User.username == username).first()
+    """Authenticate a user by username and password (case-insensitive)"""
+    user = db.query(User).filter(func.lower(User.username) == username.lower()).first()
     if not user or not verify_password(password, user.hashed_password):
         return False
     return user
@@ -191,7 +200,28 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_active: bool
+    is_admin: bool
     created_at: datetime
+
+class AdminUserCreate(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    is_admin: bool = False
+    
+    @validator('username')
+    def validate_username(cls, v):
+        if len(v) < 3 or len(v) > 50:
+            raise ValueError('Username must be between 3 and 50 characters')
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('Username can only contain letters, numbers, hyphens, and underscores')
+        return v
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters long')
+        return v
 
 def generate_short_code(length: int = 6) -> str:
     characters = string.ascii_letters + string.digits
@@ -205,25 +235,25 @@ def is_valid_custom_code(code: str) -> bool:
 @limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
 async def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
-    # Check if username already exists
-    if db.query(User).filter(User.username == user_data.username).first():
+    # Check if username already exists (case-insensitive)
+    if db.query(User).filter(func.lower(User.username) == user_data.username.lower()).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered"
         )
     
-    # Check if email already exists
-    if db.query(User).filter(User.email == user_data.email).first():
+    # Check if email already exists (case-insensitive)
+    if db.query(User).filter(func.lower(User.email) == user_data.email.lower()).first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
     
-    # Create new user
+    # Create new user (store username and email in lowercase)
     hashed_password = get_password_hash(user_data.password)
     user = User(
-        username=user_data.username,
-        email=user_data.email,
+        username=user_data.username.lower(),
+        email=user_data.email.lower(),
         hashed_password=hashed_password
     )
     
@@ -272,6 +302,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         username=current_user.username,
         email=current_user.email,
         is_active=current_user.is_active,
+        is_admin=current_user.is_admin,
         created_at=current_user.created_at
     )
 
@@ -434,6 +465,117 @@ async def delete_url(
         db.rollback()
         logger.error(f"Failed to delete URL mapping {short_code}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete URL")
+
+# Admin endpoints
+@app.post("/api/admin/users", response_model=UserResponse)
+async def create_user(
+    user_data: AdminUserCreate,
+    admin_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new user (admin only)"""
+    # Check if user already exists (case-insensitive username check)
+    existing_user = db.query(User).filter(
+        (func.lower(User.username) == user_data.username.lower()) | 
+        (func.lower(User.email) == user_data.email.lower())
+    ).first()
+    
+    if existing_user:
+        raise HTTPException(
+            status_code=400, 
+            detail="User with this username or email already exists"
+        )
+    
+    # Create new user (store username in lowercase)
+    hashed_password = get_password_hash(user_data.password)
+    new_user = User(
+        username=user_data.username.lower(),
+        email=user_data.email.lower(),
+        hashed_password=hashed_password,
+        is_admin=user_data.is_admin,
+        is_active=True
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    logger.info(f"Admin {admin_user.username} created user: {new_user.username}")
+    
+    return UserResponse(
+        id=new_user.id,
+        username=new_user.username,
+        email=new_user.email,
+        is_active=new_user.is_active,
+        is_admin=new_user.is_admin,
+        created_at=new_user.created_at
+    )
+
+@app.get("/api/admin/users", response_model=list[UserResponse])
+async def get_all_users(
+    admin_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Get all users (admin only)"""
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    
+    return [UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        is_active=user.is_active,
+        is_admin=user.is_admin,
+        created_at=user.created_at
+    ) for user in users]
+
+@app.get("/api/admin/urls", response_model=list[URLResponse])
+async def get_all_urls(
+    admin_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Get all URLs from all users (admin only)"""
+    urls = db.query(URLMapping).order_by(URLMapping.created_at.desc()).all()
+    
+    return [URLResponse(
+        id=url.id,
+        original_url=url.original_url,
+        short_code=url.short_code,
+        short_url=f"{BASE_URL}/{url.short_code}",
+        created_at=url.created_at,
+        click_count=url.click_count,
+        expires_at=url.expires_at
+    ) for url in urls]
+
+@app.delete("/api/admin/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    admin_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Delete a user and all their URLs (admin only)"""
+    # Prevent admin from deleting themselves
+    if user_id == admin_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    try:
+        # Delete all URLs belonging to the user
+        db.query(URLMapping).filter(URLMapping.user_id == user_id).delete()
+        
+        # Delete the user
+        db.delete(user)
+        db.commit()
+        
+        logger.info(f"Admin {admin_user.username} deleted user: {user.username}")
+        return {"message": f"User '{user.username}' and all associated URLs deleted successfully"}
+    
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete user")
 
 # Mount static files at the end so they don't interfere with API routes
 if ENVIRONMENT == "production" and os.path.exists("/app/static"):

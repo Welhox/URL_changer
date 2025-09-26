@@ -6,6 +6,7 @@ interface User {
   username: string;
   email: string;
   is_active: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -13,7 +14,6 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (username: string, password: string) => Promise<boolean>;
-  register: (username: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -95,30 +95,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const register = async (username: string, email: string, password: string): Promise<boolean> => {
-    try {
-      const response = await fetch(`${API_BASE}/api/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, email, password }),
-      });
-
-      if (response.ok) {
-        // Auto-login after successful registration
-        return await login(username, password);
-      } else {
-        const errorData = await response.json();
-        console.error('Registration failed:', errorData.detail);
-        return false;
-      }
-    } catch (error) {
-      console.error('Registration error:', error);
-      return false;
-    }
-  };
-
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -129,7 +105,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     user,
     token,
     login,
-    register,
     logout,
     isAuthenticated: !!user && !!token,
     isLoading,

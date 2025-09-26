@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
-import { User, UserPlus, LogIn, AlertCircle } from 'lucide-react';
+import { User, LogIn, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from './AuthContext';
 
 export default function AuthForm() {
-  const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login, register } = useAuth();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,30 +19,9 @@ export default function AuthForm() {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        const success = await login(username, password);
-        if (!success) {
-          setError('Invalid username or password');
-        }
-      } else {
-        // Validation for registration
-        if (password !== confirmPassword) {
-          setError('Passwords do not match');
-          return;
-        }
-        if (password.length < 6) {
-          setError('Password must be at least 6 characters long');
-          return;
-        }
-        if (username.length < 3) {
-          setError('Username must be at least 3 characters long');
-          return;
-        }
-
-        const success = await register(username, email, password);
-        if (!success) {
-          setError('Registration failed. Username or email might already be taken.');
-        }
+      const success = await login(username, password);
+      if (!success) {
+        setError('Invalid username or password');
       }
     } catch (err) {
       setError('Something went wrong. Please try again.');
@@ -57,37 +33,36 @@ export default function AuthForm() {
   const useDemoCredentials = () => {
     setUsername('default_user');
     setPassword('default123');
-    setIsLogin(true);
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-900 flex justify-center items-start pt-8 pb-16">
-      <div className="max-w-md px-6">
+    <div className="min-h-screen w-full bg-gray-900 flex justify-center items-start pt-4 sm:pt-8 pb-8 sm:pb-16 px-4">
+      <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 mb-4 rounded-xl" style={{backgroundColor: '#FF7BAC'}}>
-            <User className="w-8 h-8 text-gray-900" />
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 mb-4 rounded-xl" style={{backgroundColor: '#FF7BAC'}}>
+            <User className="w-7 h-7 sm:w-8 sm:h-8 text-gray-900" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
             Welcome to URL Changer
           </h1>
-          <p className="text-gray-300 text-lg">
-            {isLogin ? 'Sign in to your account' : 'Create your account'}
+          <p className="text-gray-300 text-base sm:text-lg">
+            Sign in to your account
           </p>
         </div>
 
         {/* Demo Credentials Notice */}
-        <div className="bg-gray-800 border-2 p-4 mb-4 w-full max-w-md rounded-xl" style={{borderColor: '#FF7BAC'}}>
-          <div className="flex items-start gap-3">
+        <div className="bg-gray-800 border-2 p-3 sm:p-4 mb-4 w-full rounded-xl" style={{borderColor: '#FF7BAC'}}>
+          <div className="flex items-start gap-2 sm:gap-3">
             <AlertCircle className="w-5 h-5 mt-1 flex-shrink-0" style={{color: '#FF7BAC'}} />
-            <div>
-              <h3 className="font-bold text-white text-base mb-1">Demo Account Available</h3>
-              <p className="text-gray-300 mb-3 text-sm">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-white text-sm sm:text-base mb-1">Demo Account Available</h3>
+              <p className="text-gray-300 mb-3 text-xs sm:text-sm">
                 You can use the demo account to test the application with existing URLs.
               </p>
               <button
                 onClick={useDemoCredentials}
-                className="px-3 py-1.5 text-gray-900 text-sm font-semibold transition-colors rounded-lg hover:opacity-90"
+                className="px-3 py-2 text-gray-900 text-xs sm:text-sm font-semibold transition-colors rounded-lg hover:opacity-90 touch-manipulation"
                 style={{backgroundColor: '#FF7BAC'}}
               >
                 Use Demo Account
@@ -97,7 +72,7 @@ export default function AuthForm() {
         </div>
 
         {/* Auth Form */}
-        <div className="bg-gray-800 p-6 shadow-lg w-full max-w-md rounded-2xl">
+        <div className="bg-gray-800 border-2 p-4 sm:p-6 shadow-lg w-full rounded-xl sm:rounded-2xl" style={{borderColor: '#FF7BAC'}}>
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username */}
             <div>
@@ -118,26 +93,7 @@ export default function AuthForm() {
               />
             </div>
 
-            {/* Email (Registration only) */}
-            {!isLogin && (
-              <div>
-                <label htmlFor="email" className="block text-base font-bold text-white mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="w-full px-3 py-2.5 bg-gray-100 border-2 border-gray-300 
-                           text-gray-900 text-base placeholder-gray-500 outline-none transition-colors rounded-lg"
-                  onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#FF7BAC'}
-                  onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
-                  required={!isLogin}
-                />
-              </div>
-            )}
+
 
             {/* Password */}
             <div>
@@ -158,26 +114,7 @@ export default function AuthForm() {
               />
             </div>
 
-            {/* Confirm Password (Registration only) */}
-            {!isLogin && (
-              <div>
-                <label htmlFor="confirmPassword" className="block text-base font-bold text-white mb-2">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm your password"
-                  className="w-full px-3 py-2.5 bg-gray-100 border-2 border-gray-300 
-                           text-gray-900 text-base placeholder-gray-500 outline-none transition-colors rounded-lg"
-                  onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#FF7BAC'}
-                  onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
-                  required={!isLogin}
-                />
-              </div>
-            )}
+
 
             {/* Error Message */}
             {error && (
@@ -193,7 +130,7 @@ export default function AuthForm() {
               type="submit"
               disabled={loading}
               className={clsx(
-                'w-full py-3 px-4 font-bold text-base transition-colors shadow-md flex items-center justify-center gap-2 rounded-lg hover:opacity-90',
+                'w-full py-3 sm:py-3 px-4 font-bold text-base transition-colors shadow-md flex items-center justify-center gap-2 rounded-lg hover:opacity-90 touch-manipulation',
                 loading
                   ? 'bg-gray-400 cursor-not-allowed text-gray-600'
                   : 'text-gray-900'
@@ -203,35 +140,23 @@ export default function AuthForm() {
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-600 border-t-transparent"></div>
-                  {isLogin ? 'Signing In...' : 'Creating Account...'}
+                  Signing In...
                 </>
               ) : (
                 <>
-                  {isLogin ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                  {isLogin ? 'Sign In' : 'Create Account'}
+                  <LogIn className="w-4 h-4" />
+                  Sign In
                 </>
               )}
             </button>
-
-            {/* Switch Mode */}
-            <div className="text-center pt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setError('');
-                  setEmail('');
-                  setConfirmPassword('');
-                }}
-                className="font-semibold text-sm text-gray-900 hover:text-white"
-              >
-                {isLogin 
-                  ? "Don't have an account? Sign up" 
-                  : "Already have an account? Sign in"
-                }
-              </button>
-            </div>
           </form>
+
+          {/* Admin access notice */}
+          <div className="text-center mt-6">
+            <p className="text-gray-400 text-sm">
+              Access is restricted to authorized users only
+            </p>
+          </div>
         </div>
       </div>
     </div>
