@@ -1,4 +1,4 @@
-# Coventure.es URL Shortener Backend Makefile
+# Coventure.es URL Changer Backend Makefile
 
 .PHONY: help setup install dev prod clean test test-api lint format check requirements docker-build docker-run docker-stop logs backup restore
 
@@ -20,11 +20,11 @@ DEV_PORT := 8000
 PROD_PORT := 8000
 
 # Database settings
-DB_FILE := url_shortener.db
+DB_FILE := url_changer.db
 BACKUP_DIR := backups
 
 help: ## Show this help message
-	@echo "Coventure.es URL Shortener Backend"
+	@echo "Coventure.es URL Changer Backend"
 	@echo "=================================="
 	@echo ""
 	@echo "Available commands:"
@@ -85,10 +85,10 @@ test-api: ## Run comprehensive API tests
 	@echo "1️⃣ Health Check:"
 	@curl -s -f "http://localhost:$(DEV_PORT)/api/health" | python3 -m json.tool || echo "❌ Health check failed"
 	@echo ""
-	@echo "2️⃣ URL Shortening Test:"
+	@echo "2️⃣ URL Changing Test:"
 	@curl -s -X POST "http://localhost:$(DEV_PORT)/api/shorten" \
 		-H "Content-Type: application/json" \
-		-d '{"url": "https://github.com/welhox"}' | python3 -m json.tool || echo "❌ URL shortening failed"
+		-d '{"url": "https://github.com/welhox"}' | python3 -m json.tool || echo "❌ URL changing failed"
 	@echo ""
 	@echo "3️⃣ Custom Code Test:"
 	@curl -s -X POST "http://localhost:$(DEV_PORT)/api/shorten" \
@@ -153,16 +153,16 @@ restore: ## Restore database from backup (usage: make restore BACKUP=filename)
 
 docker-build: ## Build Docker image
 	@echo "🐳 Building Docker image..."
-	docker build -t coventure-url-shortener .
+	docker build -t coventure-url-changer .
 
 docker-run: ## Run Docker container
 	@echo "🐳 Running Docker container..."
-	docker run -d -p $(DEV_PORT):8000 --name coventure-url-shortener coventure-url-shortener
+	docker run -d -p $(DEV_PORT):8000 --name coventure-url-changer coventure-url-changer
 
 docker-stop: ## Stop and remove Docker container
 	@echo "🐳 Stopping Docker container..."
-	docker stop coventure-url-shortener 2>/dev/null || true
-	docker rm coventure-url-shortener 2>/dev/null || true
+	docker stop coventure-url-changer 2>/dev/null || true
+	docker rm coventure-url-changer 2>/dev/null || true
 
 status: ## Show server status and recent activity
 	@echo "📊 Server Status:"

@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - ENVIRONMENT=production
-      - DATABASE_URL=postgresql://username:password@db:5432/urlshortener
+      - DATABASE_URL=postgresql://username:password@db:5432/urlchanger
       - SECRET_KEY=${SECRET_KEY}
       - DOMAIN=${DOMAIN}
       - BASE_URL=https://${DOMAIN}
@@ -35,7 +35,7 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=urlshortener
+      - POSTGRES_DB=urlchanger
       - POSTGRES_USER=username
       - POSTGRES_PASSWORD=password
     volumes:

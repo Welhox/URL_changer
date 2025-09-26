@@ -59,10 +59,9 @@ logger = logging.getLogger(__name__)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="URL Shortener", 
-    version="1.0.0",
-    docs_url="/docs" if ENVIRONMENT == "development" else None,
-    redoc_url="/redoc" if ENVIRONMENT == "development" else None
+    title="URL Changer", 
+    description="A professional URL changing service",
+    version="1.0.0"
 )
 
 if ENVIRONMENT == "production":

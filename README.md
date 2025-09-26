@@ -1,6 +1,6 @@
-# 🚀 Coventure.es URL Shortener
+# 🚀 Domain URL Changer
 
-> **A professional, production-ready URL shortening service built with FastAPI, React, and PostgreSQL**
+> **A professional, production-ready URL changing service built with FastAPI, React, and PostgreSQL**
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
@@ -12,7 +12,7 @@
 
 ## 🌟 Overview
 
-**Coventure.es URL Shortener** is a comprehensive, enterprise-grade URL shortening service designed for production deployment. Built with modern technologies and security best practices, it provides reliable URL shortening with analytics, rate limiting, and comprehensive monitoring.
+**Coventure.es URL Changer** is a comprehensive, enterprise-grade URL changing service designed for production deployment. Built with modern technologies and security best practices, it provides reliable URL changing with analytics, rate limiting, and comprehensive monitoring.
 
 ### 🎯 Key Features
 
@@ -28,7 +28,7 @@
 
 ## � Domain Configuration
 
-The URL shortener is designed to work with any domain. Key configuration is managed through environment variables:
+The URL changer is designed to work with any domain. Key configuration is managed through environment variables:
 
 - **`DOMAIN`**: Your domain name (e.g., `example.com`)
 - **`BASE_URL`**: Full URL including protocol (e.g., `https://example.com`)
@@ -219,7 +219,7 @@ url-changer/
 ├── frontend/                   # React Frontend
 │   ├── src/
 │   │   ├── App.tsx           # Main React application
-│   │   ├── URLShortener.tsx  # URL shortening interface
+│   │   ├── URLShortener.tsx  # URL changing interface
 │   │   └── AuthForm.tsx      # Authentication form
 │   ├── Dockerfile            # Production container configuration
 │   └── package.json          # Node.js dependencies and scripts
@@ -247,7 +247,7 @@ Key Files:
 ENVIRONMENT=production
 DOMAIN=your-domain.com                                    # Your domain name
 BASE_URL=https://your-domain.com                          # Full URL with protocol  
-DATABASE_URL=postgresql://user:pass@localhost/url_shortener
+DATABASE_URL=postgresql://user:pass@localhost/url_changer
 
 # Security
 SECRET_KEY=your-super-secret-key
@@ -321,7 +321,7 @@ make dev          # Creates fresh database on startup
 
 # Backup important data
 make backup       # Creates timestamped backup
-make restore BACKUP=url_shortener.db.backup.20241225_143022  # Restore from backup
+make restore BACKUP=url_changer.db.backup.20241225_143022  # Restore from backup
 ```
 
 ### Troubleshooting
@@ -455,7 +455,7 @@ docker-compose -f docker-compose.prod.yml up -d
 ### Database Backup
 ```bash
 docker-compose -f docker-compose.prod.yml exec postgres \
-  pg_dump -U urluser url_shortener > backup_$(date +%Y%m%d).sql
+  pg_dump -U urluser url_changer > backup_$(date +%Y%m%d).sql
 ```
 
 ### Updates
@@ -489,7 +489,7 @@ npm test
 
 ### API Testing
 ```bash
-# Test URL shortening
+# Test URL changing
 curl -X POST "https://coventure.es/api/shorten" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_API_KEY" \
@@ -520,7 +520,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🆘 Support & Documentation
 
 - **📖 Deployment Guide**: [SIMPLE-DEPLOY.md](SIMPLE-DEPLOY.md)
-- **🚨 Issues**: [GitHub Issues](https://github.com/your-username/url-shortener/issues)
+- **🚨 Issues**: [GitHub Issues](https://github.com/your-username/url-changer/issues)
 - **📧 Contact**: admin@coventure.es
 
 ---

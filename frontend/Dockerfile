@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for URL Shortener Frontend
+# Multi-stage Dockerfile for URL Changer Frontend
 
 # Build stage
 FROM node:18-alpine as builder

@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for URL Shortener Backend
+# Multi-stage Dockerfile for URL Changer Backend
 
 FROM python:3.11-slim as builder
 

@@ -251,7 +251,7 @@ export default function URLShortener() {
                     style={{backgroundColor: '#FF7BAC'}}
                   >
                     <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden xs:inline">{currentView === 'admin' ? 'URL Shortener' : 'Admin Panel'}</span>
+                    <span className="hidden xs:inline">{currentView === 'admin' ? 'URL Changer' : 'Admin Panel'}</span>
                     <span className="xs:hidden">Admin</span>
                   </button>
                 )}
@@ -350,7 +350,7 @@ export default function URLShortener() {
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-600 border-t-transparent inline-block mr-3"></div>
-                  Shortening...
+                  Changing...
                 </>
               ) : (
                 'Shorten URL'
