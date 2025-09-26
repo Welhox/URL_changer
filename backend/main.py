@@ -43,13 +43,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title="URL Changer", 
     description="A professional URL changing service",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables on startup with retry logic"""
+    max_retries = 5
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables created successfully")
+            break
+        except Exception as e:
+            logger.warning(f"Database connection attempt {attempt + 1}/{max_retries} failed: {e}")
+            if attempt == max_retries - 1:
+                logger.error("Failed to initialize database after all retries")
+                # Don't raise the exception - let the app start anyway
+                # The health endpoint and individual requests will handle DB errors
+            else:
+                import asyncio
+                await asyncio.sleep(retry_delay)
 
 if ENVIRONMENT == "production":
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=[DOMAIN, f"*.{DOMAIN}"])
