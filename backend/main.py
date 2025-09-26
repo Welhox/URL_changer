@@ -31,7 +31,7 @@ BASE_URL = ("http://localhost:8000" if ENVIRONMENT == "development"
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 API_KEY = os.getenv("API_KEY", "default-api-key")
 ALLOWED_ORIGINS = (["*"] if ENVIRONMENT == "development" 
-                  else os.getenv("ALLOWED_ORIGINS", f"https://{DOMAIN},https://www.{DOMAIN}").split(","))
+                  else os.getenv("ALLOWED_ORIGINS", f"https://{DOMAIN},https://www.{DOMAIN},https://url-changer-653405172592.europe-north1.run.app").split(","))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
 
 limiter = Limiter(key_func=get_remote_address)
@@ -70,8 +70,12 @@ async def startup_event():
                 import asyncio
                 await asyncio.sleep(retry_delay)
 
+# Allow all hosts in production for Cloud Run flexibility
+# Cloud Run provides its own network security
 if ENVIRONMENT == "production":
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=[DOMAIN, f"*.{DOMAIN}"])
+    # More permissive for Cloud Run deployment
+    allowed_hosts = ["*"]  # Allow all hosts for Cloud Run
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
