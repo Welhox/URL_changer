@@ -16,10 +16,12 @@ from datetime import datetime, timedelta
 from typing import Optional
 from database import SessionLocal, engine, Base, URLMapping, User
 from auth import verify_password, get_password_hash, create_access_token, verify_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from slack_bot import slack_bot
 import re
 import os
 import logging
 from dotenv import load_dotenv
+from urllib.parse import parse_qs
 
 load_dotenv()
 
@@ -750,6 +752,53 @@ async def delete_user(
         db.rollback()
         logger.error(f"Failed to delete user {user_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete user")
+
+# Slack Bot Integration Routes
+@app.post("/api/slack/events")
+@limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
+async def slack_events(request: Request):
+    """Handle Slack slash commands and events"""
+    try:
+        # Get raw body and headers
+        body = await request.body()
+        headers = dict(request.headers)
+        
+        # Verify the request came from Slack
+        if not slack_bot.verify_slack_request(body, headers):
+            logger.warning("Invalid Slack request signature")
+            raise HTTPException(status_code=401, detail="Invalid request signature")
+        
+        # Parse form data
+        form_data = parse_qs(body.decode('utf-8'))
+        
+        # Convert to simple dict (parse_qs returns lists)
+        parsed_data = {k: v[0] if v else '' for k, v in form_data.items()}
+        
+        # Handle slash commands
+        if 'command' in parsed_data:
+            response = await slack_bot.handle_slash_command(parsed_data)
+            return response
+        
+        # Handle other Slack events (if needed in the future)
+        return {"status": "ok"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error handling Slack request: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/api/slack/install")
+async def slack_install_info():
+    """Provide Slack app installation information"""
+    return {
+        "message": "Slack bot is integrated into this URL shortener",
+        "commands": [
+            "/shorten <url> [custom_code] - Shorten a URL",
+            "/urlstats <short_code> - Get statistics for a shortened URL"
+        ],
+        "setup": "Configure your Slack app to send slash commands to /api/slack/events"
+    }
 
 # Mount static files at the end so they don't interfere with API routes
 if ENVIRONMENT == "production" and os.path.exists("/app/static"):
