@@ -794,8 +794,9 @@ async def slack_install_info():
     return {
         "message": "Slack bot is integrated into this URL shortener",
         "commands": [
-            "/shorten <url> [custom_code] - Shorten a URL",
-            "/urlstats <short_code> - Get statistics for a shortened URL"
+            "/transmute <url> [custom_code] - Transmute a URL into a shorter one",
+            "/urlstats <short_code> - Get statistics for a specific shortened URL",
+            "/urlstats all - Show all your shortened URLs and their stats"
         ],
         "setup": "Configure your Slack app to send slash commands to /api/slack/events"
     }
