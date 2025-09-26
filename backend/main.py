@@ -155,8 +155,10 @@ class URLCreate(BaseModel):
     @validator('custom_code')
     def validate_custom_code(cls, v):
         if v is not None:
-            if len(v) < 3 or len(v) > 20:
-                raise ValueError('Custom code must be between 3 and 20 characters')
+            if len(v) < 3:
+                raise ValueError('Custom code must be at least 3 characters long')
+            if len(v) > 20:
+                raise ValueError('Custom code cannot exceed 20 characters')
             if not re.match(r'^[a-zA-Z0-9_-]+$', v):
                 raise ValueError('Custom code can only contain letters, numbers, hyphens, and underscores')
         return v

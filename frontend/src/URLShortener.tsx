@@ -314,10 +314,11 @@ export default function URLShortener() {
                 onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#FF7BAC'}
                 onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
                 pattern="[a-zA-Z0-9_-]+"
+                minLength={3}
                 maxLength={20}
               />
               <p className="text-gray-300 mt-2 text-sm">
-                Only letters, numbers, hyphens, and underscores allowed
+                3-20 characters. Only letters, numbers, hyphens, and underscores allowed
               </p>
             </div>
 
