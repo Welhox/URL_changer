@@ -25,13 +25,13 @@ load_dotenv()
 
 # Configuration
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-DOMAIN = os.getenv("DOMAIN", "coventure.es")
+DOMAIN = os.getenv("DOMAIN", "coventur.es")
 BASE_URL = ("http://localhost:8000" if ENVIRONMENT == "development" 
            else os.getenv("BASE_URL", f"https://{DOMAIN}"))
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 API_KEY = os.getenv("API_KEY", "default-api-key")
 ALLOWED_ORIGINS = (["*"] if ENVIRONMENT == "development" 
-                  else os.getenv("ALLOWED_ORIGINS", f"https://{DOMAIN},https://www.{DOMAIN},https://url-changer-653405172592.europe-north1.run.app").split(","))
+                  else os.getenv("ALLOWED_ORIGINS", f"https://{DOMAIN},https://www.{DOMAIN}").split(","))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
 
 limiter = Limiter(key_func=get_remote_address)
