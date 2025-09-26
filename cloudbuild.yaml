@@ -3,7 +3,6 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build', 
-      '--build-arg', 'VITE_API_KEY=${_API_KEY}',
       '-t', 'gcr.io/$PROJECT_ID/url-changer:$COMMIT_SHA',
       '-t', 'gcr.io/$PROJECT_ID/url-changer:latest',
       '.'
@@ -17,31 +16,15 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'gcr.io/$PROJECT_ID/url-changer:latest']
 
-  # Deploy to Cloud Run
+  # Deploy to Cloud Run (environment variables already set in Cloud Run service)
   - name: 'gcr.io/cloud-builders/gcloud'
     args: [
       'run', 'deploy', 'url-changer',
       '--image', 'gcr.io/$PROJECT_ID/url-changer:$COMMIT_SHA',
       '--region', 'us-central1',
       '--platform', 'managed',
-      '--allow-unauthenticated',
-      '--set-env-vars', 'ENVIRONMENT=production',
-      '--set-env-vars', 'DATABASE_URL=${_DATABASE_URL}',
-      '--set-env-vars', 'SECRET_KEY=${_SECRET_KEY}',
-      '--set-env-vars', 'API_KEY=${_API_KEY}',
-      '--set-env-vars', 'DOMAIN=${_DOMAIN}',
-      '--set-env-vars', 'BASE_URL=${_BASE_URL}',
-      '--set-env-vars', 'ALLOWED_ORIGINS=${_ALLOWED_ORIGINS}'
+      '--allow-unauthenticated'
     ]
-
-# Substitution variables (set these in Cloud Build triggers)
-substitutions:
-  _DATABASE_URL: 'postgresql://postgres:CB1Xa6f1kabeyTI8@db.pqcgnkdmcarlfewfqidq.supabase.co:5432/postgres'
-  _SECRET_KEY: 'wu1MJhImKZ1_ijF8zrArqshma3_DJ_MXD8A2h1OYjv8'
-  _API_KEY: 'JCffTVvDzYiOUqTFrJmTNAMa9ql6kcvC'
-  _DOMAIN: 'coventure.es'
-  _BASE_URL: 'https://coventure.es'
-  _ALLOWED_ORIGINS: 'https://coventure.es,https://www.coventure.es'
 
 images:
   - 'gcr.io/$PROJECT_ID/url-changer:$COMMIT_SHA'
