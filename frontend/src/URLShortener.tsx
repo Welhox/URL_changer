@@ -13,13 +13,6 @@ interface URLResult {
   click_count: number;
 }
 
-interface URLStats {
-  short_code: string;
-  original_url: string;
-  click_count: number;
-  created_at: string;
-}
-
 const API_BASE = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
 const API_KEY = import.meta.env.VITE_API_KEY;
 
