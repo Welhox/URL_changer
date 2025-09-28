@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, Request, Header, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -642,6 +642,16 @@ async def health_check(db: Session = Depends(get_db)):
         "version": "1.0.0",
         "environment": ENVIRONMENT
     }
+
+@app.get("/favicon.svg")
+async def get_favicon():
+    """Serve the favicon explicitly to prevent 404 errors"""
+    import os
+    favicon_path = "/app/static/favicon.svg" if ENVIRONMENT == "production" else "../frontend/public/favicon.svg"
+    if os.path.exists(favicon_path):
+        return FileResponse(favicon_path, media_type="image/svg+xml")
+    else:
+        raise HTTPException(status_code=404, detail="Favicon not found")
 
 @app.get("/api/metrics")
 async def metrics(db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
