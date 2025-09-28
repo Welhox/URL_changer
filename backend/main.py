@@ -643,16 +643,19 @@ async def health_check(db: Session = Depends(get_db)):
         "environment": ENVIRONMENT
     }
 
-@app.get("/favicon.svg")
-async def get_favicon():
-    """Serve the favicon explicitly to prevent 404 errors"""
+
+@app.get("/favicon.ico")
+async def favicon_ico():
+    """Serve favicon.ico for browser compatibility. Uses favicon.svg if .ico is missing."""
     import os
-    favicon_path = "/app/static/favicon.svg" if ENVIRONMENT == "production" else "../frontend/public/favicon.svg"
-    if os.path.exists(favicon_path):
-        return FileResponse(favicon_path, media_type="image/svg+xml")
+    svg_path = "/app/static/favicon.svg"
+    ico_path = "/app/static/favicon.ico"
+    if os.path.exists(ico_path):
+        return FileResponse(ico_path, media_type="image/x-icon")
+    elif os.path.exists(svg_path):
+        return FileResponse(svg_path, media_type="image/svg+xml")
     else:
         raise HTTPException(status_code=404, detail="Favicon not found")
-
 @app.get("/api/metrics")
 async def metrics(db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
     try:
