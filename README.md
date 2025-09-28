@@ -2,7 +2,6 @@
 
 > **A professional, production-ready URL changing service built with FastAPI, React, and PostgreSQL**
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.t└── README.md                # 📋 This documentation
 ```
 
 Key Files:
@@ -18,7 +17,7 @@ Key Files:
 
 ## 🌟 Overview
 
-**Coventure.es URL Changer** is a comprehensive, enterprise-grade URL changing service designed for production deployment. Built with modern technologies and security best practices, it provides reliable URL changing with analytics, rate limiting, and comprehensive monitoring.
+**URL Changer** is a comprehensive, enterprise-grade URL changing service designed for production deployment. Built with modern technologies and security best practices, it provides reliable URL changing with analytics, rate limiting, and comprehensive monitoring.
 
 ### 🎯 Key Features
 
@@ -315,14 +314,6 @@ LOG_LEVEL=INFO
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 SLACK_SIGNING_SECRET=your-signing-secret
 ```
-
-### DNS Requirements
-
-```
-A     domain.xyz         → YOUR_SERVER_IP
-A     www.domain.xyz     → YOUR_SERVER_IP
-```
-
 ---
 
 ## �‍💻 Development Workflow
@@ -571,4 +562,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-*Built with ❤️ for production reliability and security*
+*Built by 8*
