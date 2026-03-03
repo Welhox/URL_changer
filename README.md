@@ -1,574 +1,186 @@
-# 🚀 Domain URL Changer
+# URL Changer - Professional Link Management Service
 
-> **A professional, production-ready URL changing service built with FastAPI, React, and PostgreSQL**
+<img width="1658" height="869" alt="URL Changer Interface" src="https://github.com/user-attachments/assets/3c175799-5d1e-40aa-8c62-acc7411d8ea0" />
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.t└── README.md                # 📋 This documentation
-```
+> **A production-ready URL shortening service with Slack integration, analytics, and enterprise-grade security**
 
-Key Files:
-• .env.example - Environment variables template  
-• Dockerfile (backend & frontend) - Production containers
-• docker-compose.yml - Development environment setupcom/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
-[![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white)](https://nginx.org/)
 
 ---
 
-## 🌟 Overview
+## What is URL Changer?
 
-**Coventure.es URL Changer** is a comprehensive, enterprise-grade URL changing service designed for production deployment. Built with modern technologies and security best practices, it provides reliable URL changing with analytics, rate limiting, and comprehensive monitoring.
-
-### 🎯 Key Features
-
-- **🔒 Production Security**: API authentication, rate limiting, input validation
-- **📊 Analytics**: Click tracking and usage statistics
-- **⚡ High Performance**: FastAPI backend with async support
-- **🌐 Modern Frontend**: React with TypeScript and Tailwind CSS
-- **🐳 Docker Ready**: Complete containerization with docker-compose
-- **📈 Monitoring**: Health checks and metrics
-- **🔐 SSL/TLS**: Full HTTPS support with Let's Encrypt integration
+URL Changer is a full-stack link management platform I built to explore production-ready backend architecture and DevOps practices. While URL shorteners are a solved problem, building one from scratch let me work with interesting challenges: designing secure APIs, implementing rate limiting, deploying with Docker, and integrating with Slack's API.
 
 ---
 
-## � Domain Configuration
+## Why I Built This
 
-The URL changer is designed to work with any domain. Key configuration is managed through environment variables:
-
-- **`DOMAIN`**: Your domain name (e.g., `example.com`)
-- **`BASE_URL`**: Full URL including protocol (e.g., `https://example.com`)
-- **`ALLOWED_ORIGINS`**: CORS origins for your domain
-
-### Quick Domain Setup
-
-```bash
-# Set up everything for your domain automatically
-./scripts/setup-domain.sh your-domain.com
-```
-
-This script will:
-- ✅ Update all configuration files with your domain
-- ✅ Configure backend environment variables
-- ✅ Update frontend production settings
-- ✅ Modify nginx configuration
-- ✅ Set up SSL certificate paths
+I wanted hands-on experience with backend architecture, API security, database design, Slack integration, and DevOps workflows. This project demonstrates my ability to build production-grade services with proper error handling, monitoring, and deployment automation.
 
 ---
 
-## �🏗️ Architecture
+## Key Features
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   React         │    │   Nginx         │    │   FastAPI       │
-│   Frontend      │───▶│   Reverse       │───▶│   Backend       │
-│                 │    │   Proxy         │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │                        │
-                              ▼                        ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │   SSL/TLS       │    │   PostgreSQL    │
-                       │   Termination   │    │   Database      │
-                       └─────────────────┘    └─────────────────┘
-```
+**Core Functionality**
+- Custom short codes for memorable links
+- Click analytics and usage tracking
+- Expiration support for time-limited URLs
+- Malicious URL detection
 
----
+**Slack Bot Integration**
+- User-specific URL collections (each Slack user maintains their own library)
+- Slash commands: `/transmute`, `/urlstats`, `/urlremove`
+- Rich formatted responses with click stats
+- Proper signature verification and security
 
-## 🚀 Quick Start
+**Production Security**
+- API key authentication
+- Rate limiting (per-IP throttling)
+- Input validation with Pydantic
+- HTTPS with Let's Encrypt support
+- Security headers (CORS, CSP)
 
-### Development Environment
-
-```bash
-# Clone repository
-git clone https://github.com/your-username/url-changer.git
-cd url-changer
-
-# Backend setup with Makefile
-cd backend
-make setup          # Create venv and install dependencies
-make dev             # Start development server
-
-# Frontend setup (in new terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-### 🛠️ Backend Makefile Commands
-
-The backend includes a comprehensive Makefile for streamlined development workflows:
-
-#### 📋 **Available Commands**
-```bash
-make help           # Show all available commands with descriptions
-```
-
-#### 🔧 **Setup & Installation**
-```bash
-make setup          # Create virtual environment and install dev dependencies
-make install        # Install/update development dependencies (assumes venv exists)
-make install-prod   # Install production dependencies (includes PostgreSQL support)
-make update-deps    # Update all dependencies to latest versions
-make reset          # Clean everything and setup fresh environment
-```
-
-#### 🚀 **Development Server**
-```bash
-make dev            # Run development server with auto-reload (foreground)
-make dev-bg         # Run development server in background
-make debug          # Run server with debug logging enabled
-make stop           # Stop background development server
-make prod           # Run production server (4 workers)
-```
-
-#### 🧪 **Testing & Validation**
-```bash
-make test           # Basic API health check
-make test-api       # Comprehensive API tests (shorten, custom codes, etc.)
-make test-redirect  # Test URL redirect functionality with sample data
-make quick-test     # Full test cycle: start server → test → stop server
-```
-
-#### 📊 **Monitoring & Status**
-```bash
-make status         # Show server status, database info, and running processes
-make logs           # View server logs (tail -f server.log)
-```
-
-#### 🗄️ **Database Management**
-```bash
-make clean          # Clean database and temporary files (removes SQLite DB)
-make backup         # Create timestamped database backup
-make restore BACKUP=filename  # Restore database from backup file
-```
-
-#### 🔍 **Code Quality**
-```bash
-make lint           # Check code style with flake8 (auto-installs if missing)
-make format         # Format code with black (auto-installs if missing)  
-make check          # Run all code quality checks
-make requirements   # Generate/update requirements.txt from current environment
-```
-
-#### 🐳 **Docker Operations**
-```bash
-make docker-build   # Build Docker image for the backend
-make docker-run     # Run Docker container (port 8000)
-make docker-stop    # Stop and remove Docker container
-```
-
-#### 💡 **Usage Examples**
-
-**Complete Development Setup:**
-```bash
-cd backend
-make setup          # One-time setup
-make dev-bg         # Start server in background
-make test-api       # Verify everything works
-make logs           # Monitor server activity
-```
-
-**Quick Development Workflow:**
-```bash
-make dev            # Start development server (Ctrl+C to stop)
-# Edit code - server auto-reloads
-# Test API in another terminal
-```
-
-**Testing Workflow:**
-```bash
-make quick-test     # Automated: start → test → stop
-# or manually:
-make dev-bg && sleep 2 && make test-api && make stop
-```
-
-**Production Deployment Prep:**
-```bash
-make install-prod   # Install with PostgreSQL support
-make lint          # Check code quality
-make backup        # Backup current data
-make prod          # Start production server
-```
-
-### 🌐 Production Deployment
-
-#### Quick Deploy Options
-
-**Docker (Recommended):**
-```bash
-# 1. Configure environment
-cp .env.example .env
-# Edit .env with your settings
-
-# 2. Deploy with Docker Compose  
-docker-compose up -d
-```
-
-**Google Cloud Run:**
-```bash
-# 1. Build and deploy
-gcloud run deploy url-changer --source . \
-  --platform managed --region us-central1 \
-  --allow-unauthenticated
-
-# 2. Configure custom domain (optional)
-gcloud run domain-mappings create --service url-changer \
-  --domain your-domain.com
-```
-
-**VPS/Server:**
-```bash
-# 1. Setup environment
-make setup
-make install-prod
-
-# 2. Configure reverse proxy (nginx recommended)
-# 3. Start production server
-make prod
-```
+**Developer Experience**
+- Comprehensive Makefile with 25+ commands
+- Automated testing and validation
+- Database backup and restore
+- Code quality tools
 
 ---
 
-## 🤖 Slack Bot Integration
+## Technical Stack
 
-The URL changer includes a fully integrated Slack bot with user-specific URL collections:
+**Backend:** FastAPI, PostgreSQL, SQLAlchemy, Pydantic, Python 3.11+
 
-### Available Commands
+**Frontend:** React, TypeScript, Tailwind CSS, Vite
+
+**Infrastructure:** Docker, Nginx, Redis, Google Cloud Run ready
+
+**Integrations:** Slack API, Let's Encrypt
+
+---
+
+## Architecture
+
+The system consists of four main components:
+
+**Frontend (React + TypeScript)** serves the user interface and handles form validation.
+
+**Backend (FastAPI)** processes requests, manages the database, enforces rate limits, and handles Slack webhooks with comprehensive error handling and logging.
+
+**Database (PostgreSQL)** stores URL mappings and analytics with proper indexing and connection pooling.
+
+**Nginx** handles SSL termination, serves static files, and routes requests as a reverse proxy.
+
+All services are containerized with Docker for consistent deployment.
+
+---
+
+## Developer Tooling
+
+The Makefile provides organized commands for streamlined development:
+
+**Setup & Installation**
+
+- `make setup` - Initial environment setup
+- `make install` - Install dependencies
+- `make install-prod` - Production dependencies with PostgreSQL
+- `make reset` - Clean slate
+
+**Development**
+
+- `make dev` - Start dev server with auto-reload
+- `make dev-bg` - Run in background
+- `make logs` - View server logs
+- `make stop` - Stop background servers
+
+**Testing**
+
+- `make test` - Quick health check
+- `make test-api` - Comprehensive API tests
+- `make quick-test` - Automated test cycle
+
+**Database**
+
+- `make backup` - Create timestamped backup
+- `make restore` - Restore from backup
+- `make clean` - Remove database and temp files
+
+**Code Quality**
+
+- `make lint` - Check code style
+- `make format` - Auto-format code
+- `make check` - Run all quality checks
+
+---
+
+## Slack Bot
+
+The Slack integration handles user-specific URL collections using Slack user IDs for isolation. Each workspace gets rate limiting to prevent abuse. Slash commands provide full URL management directly from Slack with rich formatted responses using Block Kit.
+
+**Commands:**
 - `/transmute <url> [custom_code]` - Create shortened URLs
-- `/urlstats [short_code|all]` - View URL statistics  
-- `/urlremove <short_code>` - Remove URLs
-
-### Key Features
-- **User Isolation**: Each Slack user maintains their own private URL collection
-- **Rich Responses**: Formatted blocks with click counts and creation dates
-- **Security**: Proper Slack signature verification and rate limiting
-
-### Setup
-```bash
-# Configure Slack integration in .env
-SLACK_BOT_TOKEN=xoxb-your-bot-token
-SLACK_SIGNING_SECRET=your-signing-secret
-
-# Configure slash commands to point to:
-# POST https://your-domain.com/api/slack/events
-```
+- `/urlstats [short_code|all]` - View statistics
+- `/urlremove <short_code>` - Delete URLs
 
 ---
 
-## � Project Structure
+## What I Learned
 
-```
-```
-url-changer/
-├── backend/                    # FastAPI Backend
-│   ├── main.py                # FastAPI application entry point
-│   ├── database.py            # Database models and configuration
-│   ├── requirements.txt       # Production dependencies
-│   ├── Dockerfile            # Production container configuration
-│   └── venv/                 # Python virtual environment
-│
-├── frontend/                   # React Frontend
-│   ├── src/
-│   │   ├── App.tsx           # Main React application
-│   │   ├── URLShortener.tsx  # URL changing interface
-│   │   └── AuthForm.tsx      # Authentication form
-│   ├── Dockerfile            # Production container configuration
-│   └── package.json          # Node.js dependencies and scripts
-│
-├── .env.example              # Environment variables template
-├── docker-compose.yml        # Development Docker setup
-├── SIMPLE-DEPLOY.md         # � Simple deployment guide
-└── README.md                # 📋 This documentation
-```
+**API Design:** Structuring FastAPI applications with proper dependency injection, middleware, and error handling patterns.
 
-Key Files:
-• SIMPLE-DEPLOY.md - Simple Google Cloud deployment guide
-• .env.example - Environment variables template
-• Dockerfile (backend & frontend) - Production containers
-```
+**Database Optimization:** PostgreSQL indexing strategies, connection pooling, and query optimization.
+
+**Security:** Multiple layers from input validation to rate limiting to API authentication. Understanding common vulnerabilities and prevention.
+
+**Slack Integration:** Working with webhooks, slash commands, and OAuth flows with proper error handling.
+
+**DevOps:** Creating reproducible deployment processes with Docker, configuring nginx, and automating tasks with Make.
 
 ---
 
-## �🔧 Configuration
+## API Overview
 
-### Environment Variables
-
-```bash
-# Production Configuration
-ENVIRONMENT=production
-DOMAIN=your-domain.com                                    # Your domain name
-BASE_URL=https://your-domain.com                          # Full URL with protocol  
-DATABASE_URL=postgresql://user:pass@localhost/url_changer
-
-# Security
-SECRET_KEY=your-super-secret-key
-API_KEY=your-api-key
-
-# Rate Limiting
-RATE_LIMIT_PER_MINUTE=60
-RATE_LIMIT_PER_HOUR=1000
-
-# Logging
-LOG_LEVEL=INFO
-
-# Slack Bot Integration (optional)
-SLACK_BOT_TOKEN=xoxb-your-bot-token
-SLACK_SIGNING_SECRET=your-signing-secret
-```
-
-### DNS Requirements
-
-```
-A     domain.xyz         → YOUR_SERVER_IP
-A     www.domain.xyz     → YOUR_SERVER_IP
-```
+- **POST /api/shorten** - Create shortened URLs with optional custom codes and expiration
+- **GET /{short_code}** - Redirect to original URL and increment counter
+- **GET /api/stats/{short_code}** - Retrieve analytics (authenticated)
+- **POST /api/slack/events** - Slack webhook for slash commands
+- **GET /api/health** - Health check for monitoring
+- **GET /api/metrics** - System metrics (authenticated)
 
 ---
 
-## �‍💻 Development Workflow
+## Project Structure
 
-### First Time Setup
-```bash
-cd backend
-make help           # See all available commands
-make setup          # Create virtual environment and install dependencies
-```
+The project is organized into backend and frontend components:
 
-### Daily Development
-```bash
-# Option 1: Foreground (recommended for active development)
-make dev            # Start server with auto-reload, Ctrl+C to stop
+**Backend** contains the FastAPI application (main.py), database models (database.py), Slack integration (slack_bot.py), development tooling (Makefile), and container configuration (Dockerfile).
 
-# Option 2: Background (for testing while doing other work)
-make dev-bg         # Start in background
-# ... do other work ...
-make logs          # Check server activity
-make stop          # Stop when done
-```
+**Frontend** includes the React application with TypeScript, the main App component, URL shortener UI, and its own container setup.
 
-### Testing Your Changes
-```bash
-# Quick health check
-make test
-
-# Comprehensive API testing
-make test-api       # Tests URL creation, custom codes, etc.
-
-# Test redirect functionality
-make test-redirect  # Creates test URL and verifies redirect
-
-# Full automated test cycle
-make quick-test     # Starts server → runs tests → stops server
-```
-
-### Before Committing Code
-```bash
-make lint          # Check code style
-make format        # Auto-format code
-make backup        # Backup current database
-```
-
-### Database Management
-```bash
-# Clean slate for testing
-make clean         # Removes database and temp files
-make dev          # Creates fresh database on startup
-
-# Backup important data
-make backup       # Creates timestamped backup
-make restore BACKUP=url_changer.db.backup.20241225_143022  # Restore from backup
-```
-
-### Troubleshooting
-```bash
-make status       # Shows server status, database info, running processes
-make logs         # View server logs
-make stop         # Stop any running background servers
-make reset        # Nuclear option: clean everything and start fresh
-```
-
-### Production Preparation
-```bash
-make install-prod # Install production dependencies (includes PostgreSQL)
-make prod        # Test production server locally
-```
+**Root level** has docker-compose for multi-service orchestration and environment configuration template.
 
 ---
 
-## �📋 API Reference
+## About Me
 
-### Authentication
-All API endpoints require the `X-API-Key` header in production.
+I'm **Casimir Lundberg**, a full-stack developer with a background in aviation, based in Finland. I work with C/C++, TypeScript, React, Python, and modern web technologies. Currently seeking developer opportunities.
 
-### Endpoints
-
-#### `POST /api/shorten`
-Create a shortened URL.
-
-**Request:**
-```json
-{
-  "url": "https://example.com/very/long/url",
-  "custom_code": "my-link",
-  "expires_at": "2024-12-31T23:59:59"
-}
-```
-
-**Response:**
-```json
-{
-  "id": 1,
-  "original_url": "https://example.com/very/long/url",
-  "short_code": "my-link",
-  "short_url": "https://DOMAIN_HERE/my-link",
-  "created_at": "2024-01-01T12:00:00",
-  "click_count": 0,
-  "expires_at": "2024-12-31T23:59:59"
-}
-```
-
-#### `GET /{short_code}`
-Redirect to original URL and increment click count.
-
-#### `GET /api/stats/{short_code}`
-Get statistics for a shortened URL (requires API key).
-
-#### `GET /api/health`
-Health check endpoint for monitoring.
-
-#### `GET /api/metrics`
-System metrics and usage statistics (requires API key).
+- Portfolio: [casimirlundberg.fi](https://casimirlundberg.fi)
+- LinkedIn: [linkedin.com/in/caslun](https://linkedin.com/in/caslun)
+- Email: mail@casimirlundberg.fi
+- GitHub: [@Welhox](https://github.com/Welhox)
 
 ---
 
-## 🛡️ Security Features
+<div align="center">
 
-### Production Security
-- **🔐 HTTPS Only**: SSL/TLS encryption for all communications
-- **🔑 API Authentication**: Secure API key-based authentication
-- **🚦 Rate Limiting**: Configurable rate limits per IP address
-- **🛡️ Input Validation**: Comprehensive validation of all inputs
-- **🚫 CORS Protection**: Strict cross-origin resource sharing policies
-- **🔒 Security Headers**: Complete security header implementation
+**Built by 8**
 
-### Content Security
-- **🚫 Malicious URL Detection**: Blocks known malicious domains
-- **🔍 URL Validation**: Prevents internal network access in production
-- **⏰ Expiration Support**: Time-limited short URLs
-- **📊 Analytics**: Click tracking without user identification
+*FastAPI • React • PostgreSQL • Docker • Slack API*
 
----
-
-## 📊 Monitoring & Observability
-
-### Health Monitoring
-```bash
-# Basic health check
-GET /api/health
-
-# Detailed metrics (requires API key)
-GET /api/metrics
-```
-
-### Logging
-- **📝 Structured Logging**: JSON-formatted logs for easy parsing
-- ** Performance Metrics**: Request timing and database performance
-- **🔍 Audit Logging**: All API operations logged for security
-
-### Metrics Available
-- Total URLs created
-- Total clicks/redirects
-- Recent activity (24h)
-- Database performance
-- API response times
-
----
-
-## 🐳 Docker Deployment
-
-### Development
-```bash
-docker-compose up -d
-```
-
-### Production
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### Services
-- **app**: FastAPI backend application
-- **postgres**: PostgreSQL database with connection pooling
-- **redis**: Redis for rate limiting and caching
-- **nginx**: Reverse proxy with SSL termination
-
----
-
-## 🔄 Maintenance
-
-### Database Backup
-```bash
-docker-compose -f docker-compose.prod.yml exec postgres \
-  pg_dump -U urluser url_changer > backup_$(date +%Y%m%d).sql
-```
-
-### Updates
-```bash
-git pull origin main
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### SSL Certificate Renewal
-```bash
-# Automatic renewal via cron (configured during setup)
-certbot renew --quiet
-```
-
----
-
-## 🧪 Testing
-
-### Backend Tests
-```bash
-cd backend
-pytest tests/
-```
-
-### Frontend Tests
-```bash
-cd frontend
-npm test
-```
-
-### API Testing
-```bash
-# Test URL changing
-curl -X POST "https://DOMAIN_HERE/api/shorten" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -d '{"url": "https://example.com"}'
-
-# Test redirect
-curl -I https://DOMAIN_HERE/SHORTENED_CODE
-```
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-*Built with ❤️ for production reliability and security*
+</div>
