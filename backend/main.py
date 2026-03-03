@@ -8,10 +8,11 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, update
 from pydantic import BaseModel, HttpUrl, validator, EmailStr
 import string
-import random
+import secrets
+import hmac
 from datetime import datetime, timedelta
 from typing import Optional
 from database import SessionLocal, engine, Base, URLMapping, User
@@ -45,7 +46,7 @@ ALLOWED_ORIGINS = (["*"] if ENVIRONMENT == "development"
                   else os.getenv("ALLOWED_ORIGINS", f"https://{DOMAIN},https://www.{DOMAIN}").split(","))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address, storage_uri=os.getenv("REDIS_URL", "memory://"))
 security = HTTPBearer()
 
 logging.basicConfig(
@@ -115,7 +116,7 @@ async def https_redirect_middleware(request: Request, call_next):
     return response
 
 def verify_api_key(x_api_key: str = Header(None)):
-    if x_api_key != API_KEY:
+    if not hmac.compare_digest(x_api_key or "", API_KEY):
         raise HTTPException(status_code=401, detail="Invalid API key")
     return x_api_key
 
@@ -187,6 +188,9 @@ class URLCreate(BaseModel):
                 raise ValueError('Custom code cannot exceed 20 characters')
             if not re.match(r'^[a-zA-Z0-9_-]+$', v):
                 raise ValueError('Custom code can only contain letters, numbers, hyphens, and underscores')
+            reserved = {"api", "admin", "slack", "health", "metrics", "debug", "static", "favicon.ico"}
+            if v.lower() in reserved:
+                raise ValueError('Custom code conflicts with a reserved route')
         return v
 
 class URLResponse(BaseModel):
@@ -262,14 +266,14 @@ class AdminUserCreate(BaseModel):
 
 def generate_short_code(length: int = 6) -> str:
     characters = string.ascii_letters + string.digits
-    return ''.join(random.choice(characters) for _ in range(length))
+    return ''.join(secrets.choice(characters) for _ in range(length))
 
 def is_valid_custom_code(code: str) -> bool:
     return re.match(r'^[a-zA-Z0-9_-]+$', code) and len(code) <= 20
 
 # Authentication Endpoints
 @app.post("/api/register", response_model=UserResponse)
-@limiter.limit(f"{RATE_LIMIT_PER_MINUTE}/minute")
+@limiter.limit("10/minute")
 async def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     # Check if username already exists (case-insensitive)
@@ -508,11 +512,15 @@ async def redirect_url(request: Request, short_code: str, db: Session = Depends(
     old_count = url_mapping.click_count
     logger.info(f"Incrementing click count for '{short_code}' from {old_count} to {old_count + 1}")
     
-    # Increment click count and commit immediately
+    # Increment click count atomically to avoid race conditions
     try:
-        url_mapping.click_count += 1
+        db.execute(
+            update(URLMapping)
+            .where(URLMapping.short_code == short_code)
+            .values(click_count=URLMapping.click_count + 1)
+        )
         db.commit()
-        db.refresh(url_mapping)  # Refresh to ensure the change is persisted
+        db.refresh(url_mapping)
         logger.info(f"✅ Click count successfully updated for '{short_code}': {old_count} → {url_mapping.click_count}")
         logger.info(f"Database commit successful for '{short_code}', redirecting to: {url_mapping.original_url}")
     except Exception as e:
@@ -534,7 +542,8 @@ async def redirect_url(request: Request, short_code: str, db: Session = Depends(
     return RedirectResponse(url=url_mapping.original_url, status_code=308)
 
 @app.get("/api/stats/{short_code}", response_model=URLStats)
-async def get_url_stats(short_code: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+async def get_url_stats(request: Request, short_code: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     url_mapping = db.query(URLMapping).filter(
         URLMapping.short_code == short_code,
         URLMapping.user_id == current_user.id
@@ -605,25 +614,22 @@ async def get_bot_urls(api_key: str = Depends(verify_api_key), db: Session = Dep
         ) for url in urls
     ]
 
-# Debug endpoint to help troubleshoot click count issues (sanitized for security)
-@app.get("/api/debug/url/{short_code}")
-async def debug_url_info(short_code: str, db: Session = Depends(get_db)):
-    """Debug endpoint to check URL details - sanitized to prevent information disclosure"""
-    url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
-    
-    if not url_mapping:
-        return {"error": "Short URL not found", "short_code": short_code}
-    
-    return {
-        "short_code": url_mapping.short_code,
-        "original_url": url_mapping.original_url,
-        "click_count": url_mapping.click_count,
-        "created_at": url_mapping.created_at.isoformat() if url_mapping.created_at else None,
-        "expires_at": url_mapping.expires_at.isoformat() if url_mapping.expires_at else None,
-        "user_id": url_mapping.user_id,
-        # Removed database_url and environment for security
-        "status": "active" if not url_mapping.expires_at or datetime.utcnow() < url_mapping.expires_at else "expired"
-    }
+# Debug endpoint — commented out; unauthenticated, exposes URL metadata
+# Uncomment locally when needed, do not deploy to production
+# @app.get("/api/debug/url/{short_code}")
+# async def debug_url_info(short_code: str, db: Session = Depends(get_db)):
+#     url_mapping = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
+#     if not url_mapping:
+#         return {"error": "Short URL not found", "short_code": short_code}
+#     return {
+#         "short_code": url_mapping.short_code,
+#         "original_url": url_mapping.original_url,
+#         "click_count": url_mapping.click_count,
+#         "created_at": url_mapping.created_at.isoformat() if url_mapping.created_at else None,
+#         "expires_at": url_mapping.expires_at.isoformat() if url_mapping.expires_at else None,
+#         "user_id": url_mapping.user_id,
+#         "status": "active" if not url_mapping.expires_at or datetime.utcnow() < url_mapping.expires_at else "expired"
+#     }
 
 @app.get("/api/health")
 async def health_check(db: Session = Depends(get_db)):
@@ -707,7 +713,9 @@ async def delete_url(
 
 # Admin endpoints
 @app.post("/api/admin/users", response_model=UserResponse)
+@limiter.limit("20/minute")
 async def create_user(
+    request: Request,
     user_data: AdminUserCreate,
     admin_user: User = Depends(get_admin_user),
     db: Session = Depends(get_db)
@@ -751,7 +759,9 @@ async def create_user(
     )
 
 @app.get("/api/admin/users", response_model=list[UserResponse])
+@limiter.limit("20/minute")
 async def get_all_users(
+    request: Request,
     admin_user: User = Depends(get_admin_user),
     db: Session = Depends(get_db)
 ):
@@ -768,7 +778,9 @@ async def get_all_users(
     ) for user in users]
 
 @app.get("/api/admin/urls", response_model=list[URLResponse])
+@limiter.limit("20/minute")
 async def get_all_urls(
+    request: Request,
     admin_user: User = Depends(get_admin_user),
     db: Session = Depends(get_db)
 ):
@@ -786,7 +798,9 @@ async def get_all_urls(
     ) for url in urls]
 
 @app.delete("/api/admin/users/{user_id}")
+@limiter.limit("20/minute")
 async def delete_user(
+    request: Request,
     user_id: int,
     admin_user: User = Depends(get_admin_user),
     db: Session = Depends(get_db)

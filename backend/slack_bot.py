@@ -4,6 +4,7 @@ Slack Bot integration for URL Shortener
 import os
 import hmac
 import hashlib
+import secrets
 import time
 import json
 import logging
@@ -15,6 +16,7 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 from database import SessionLocal, URLMapping, User
+from auth import get_password_hash
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -106,7 +108,7 @@ class SlackBot:
                 bot_user = User(
                     username=bot_username,
                     email=f"{bot_username}@slack.bot",
-                    hashed_password="slack-bot-no-password",
+                    hashed_password=get_password_hash(secrets.token_urlsafe(32)),
                     is_active=True
                 )
                 db.add(bot_user)
@@ -116,8 +118,7 @@ class SlackBot:
             # Generate short code if not provided
             if not custom_code:
                 import string
-                import random
-                custom_code = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+                custom_code = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
             
             # Create URL entry
             url_mapping = URLMapping(
